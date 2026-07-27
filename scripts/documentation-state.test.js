@@ -17,7 +17,8 @@ const spec = read("docs/SPEC_v2.md");
 const plan = read("docs/IMPLEMENTATION_PLAN_v2.md");
 
 assert.match(spec, /文書種別: 現行実装仕様/);
-assert.match(spec, /submissionsEnabled: true/);
+assert.match(spec, /rankingsEnabled: false/);
+assert.match(spec, /submissionsEnabled: false/);
 assert.ok(spec.includes(RANKING_CONFIG.clientVersion));
 assert.ok(spec.includes(PRACTICE_STAGE_BANK_FEATURE.primaryBankId));
 assert.ok(spec.includes(PRACTICE_STAGE_BANK_FEATURE.fallbackBankId));
@@ -25,6 +26,7 @@ assert.doesNotMatch(spec, /public\.games.*未完了/);
 
 assert.match(requirements, /文書種別: 現行製品要件/);
 assert.match(requirements, /T001 \/ T011 \/ T021/);
+assert.match(requirements, /ランキング取得・送信停止中/);
 assert.ok(requirements.includes(PRACTICE_STAGE_BANK_FEATURE.primaryBankId));
 assert.ok(requirements.includes(PRACTICE_STAGE_BANK_FEATURE.fallbackBankId));
 assert.doesNotMatch(
@@ -35,6 +37,8 @@ assert.doesNotMatch(
 assert.ok(plan.includes(ACTIVE_PRACTICE_STAGE_BANK_ID));
 assert.match(plan, /ランダム練習primary:.*84問/);
 assert.match(plan, /REVIEW EXECUTION COMPLETED/);
+assert.match(plan, /rankingsEnabled=false/);
+assert.match(plan, /高速連続タップ/);
 assert.doesNotMatch(plan, /ランダム練習: 現行30問から3問選出/);
 
 console.log("✓ 現行要件・仕様・実装計画は主要コード契約と一致");

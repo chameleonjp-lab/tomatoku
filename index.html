@@ -35,9 +35,10 @@
           <div class="logo" aria-hidden="true">🍅</div>
           <h1 id="home-title">トマトオク</h1>
           <p>5×5の畑に🍅を置く 3ステージ・タイムパズル</p>
+          <span id="release-badge" class="release-badge">テスト版・記録なし</span>
         </div>
 
-        <div class="card stack">
+        <div id="home-card" class="card stack home-card" aria-busy="false">
           <div>
             <label for="player-name">プレイヤー名（必須）</label>
             <input
@@ -52,27 +53,48 @@
             />
             <div id="name-error" class="field-error" aria-live="polite"></div>
             <p id="name-privacy" class="privacy-notice">
-              公式プレイでは、プレイヤー名・補正タイム・プレイ回数が公開ランキングに保存されます。
-              ランダム練習は送信されません。<strong>本名・メールアドレス・電話番号は入力しないでください。</strong>
+              現在はテスト中のため、公式プレイもランキングへ保存しません。
+              プレイヤー名はこの端末内だけに保存します。<strong>本名・メールアドレス・電話番号は入力しないでください。</strong>
             </p>
           </div>
 
-          <button id="start-official-btn" class="btn">公式3問に挑戦</button>
-          <p class="muted mode-description">
-            全員同じ3問・同じ順番。補正タイムが短いほど上位です。
-          </p>
-          <button id="start-practice-btn" class="btn secondary">
-            ランダム練習
-          </button>
-          <p class="muted mode-description">
-            毎回違う3問。ランキングには送信されません。
-          </p>
+          <div class="mode-card mode-card-official">
+            <div class="mode-card-head">
+              <span class="mode-card-title">公式モード</span>
+              <span class="mode-tag">固定3問</span>
+            </div>
+            <button id="start-official-btn" class="btn">公式3問に挑戦</button>
+            <p class="muted mode-description">
+              全員同じ3問・同じ順番。現在は記録を保存しません。
+            </p>
+          </div>
 
-          <button id="howto-btn" class="btn secondary">遊び方</button>
-          <button id="tutorial-btn" class="btn secondary">
-            ▶ チュートリアル（4×4で体験）
-          </button>
-          <button id="home-share-btn" class="btn ghost">シェア</button>
+          <div class="mode-card">
+            <div class="mode-card-head">
+              <span class="mode-card-title">練習モード</span>
+              <span class="mode-tag practice">84問から選出</span>
+            </div>
+            <button id="start-practice-btn" class="btn secondary">
+              ランダム練習
+            </button>
+            <p class="muted mode-description">
+              難易度別に3問を選出。ランキングには送信しません。
+            </p>
+          </div>
+
+          <div id="start-preparing" class="preparing-panel" hidden role="status" aria-live="polite">
+            <span class="preparing-spinner" aria-hidden="true"></span>
+            <span id="start-preparing-text">練習問題を準備しています…</span>
+            <button id="cancel-start-btn" class="text-button" type="button">準備をやめる</button>
+          </div>
+
+          <div class="utility-grid">
+            <button id="howto-btn" class="btn secondary">遊び方</button>
+            <button id="tutorial-btn" class="btn secondary">
+              ▶ チュートリアル
+            </button>
+          </div>
+          <button id="home-share-btn" class="btn ghost">ゲームをシェア</button>
           <div class="btn-row link-row">
             <a
               id="lab-link"
@@ -85,6 +107,8 @@
             <a
               id="detail-ranking-link"
               class="btn secondary"
+              data-ranking-only
+              hidden
               href="https://chameleonjp.codeberg.page/chameleonjp_lab/ranking.html?game=tomatoku"
               target="_blank"
               rel="noopener noreferrer"
@@ -93,7 +117,7 @@
           </div>
         </div>
 
-        <div class="card ranking" style="margin-top: 14px">
+        <div class="card ranking" data-ranking-only hidden>
           <h2 class="section-title">公式ランキング（補正タイム・短い順）</h2>
           <div id="home-ranking" role="status" aria-live="polite"></div>
         </div>
@@ -101,10 +125,9 @@
 
       <section
         id="screen-countdown"
-        class="screen"
+        class="screen countdown-screen"
         aria-label="ゲーム開始カウントダウン"
         aria-live="assertive"
-        style="justify-content: center"
       >
         <div class="brand">
           <div class="logo" aria-hidden="true">🍅</div>
@@ -115,14 +138,6 @@
         <div class="card" style="text-align: center">
           <div
             id="countdown-value"
-            style="
-              min-height: 1.2em;
-              font-size: clamp(3.8rem, 22vw, 7rem);
-              line-height: 1.1;
-              font-weight: 900;
-              color: var(--tomato);
-              font-variant-numeric: tabular-nums;
-            "
           >
             3
           </div>
@@ -187,7 +202,8 @@
 
       <section id="screen-result" class="screen" aria-labelledby="result-heading">
         <div class="brand">
-          <h1 id="result-heading" style="font-size: 1.6rem">けっか</h1>
+          <span class="result-badge">全3ステージクリア</span>
+          <h1 id="result-heading" class="result-heading">けっか</h1>
           <p id="result-mode">公式3問</p>
         </div>
 
@@ -258,6 +274,8 @@
             <a
               id="result-detail-ranking-link"
               class="btn secondary"
+              data-ranking-only
+              hidden
               href="https://chameleonjp.codeberg.page/chameleonjp_lab/ranking.html?game=tomatoku"
               target="_blank"
               rel="noopener noreferrer"
@@ -266,7 +284,7 @@
           </div>
         </div>
 
-        <div class="card ranking" style="margin-top: 14px">
+        <div class="card ranking" data-ranking-only hidden>
           <h2 class="section-title">公式ランキング（補正タイム・短い順）</h2>
           <div id="result-ranking" role="status" aria-live="polite"></div>
         </div>
@@ -290,7 +308,7 @@
         <h3 class="modal-h3">モード</h3>
         <ul class="rules-list">
           <li><b>公式3問</b>：全員が同じ3問を同じ順番でプレイ</li>
-          <li><b>ランダム練習</b>：毎回違う3問。ランキング対象外</li>
+          <li><b>ランダム練習</b>：84問から難易度別に3問を選出。ランキング対象外</li>
         </ul>
         <h3 class="modal-h3">🍅を置くルール</h3>
         <ul class="rules-list">
@@ -304,7 +322,7 @@
           <li>実時間にペナルティを加えた秒数。短いほど好成績</li>
           <li>誤タップ1回につき<b>+3秒</b></li>
           <li>ヒント1回につき<b>+30秒</b></li>
-          <li>公式3問だけランキング対象</li>
+          <li>テスト中は公式3問もランキング送信を停止</li>
         </ul>
         <div class="btn-row">
           <button id="howto-to-tutorial" class="btn secondary">

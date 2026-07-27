@@ -187,6 +187,7 @@ function initBoardAnnouncements() {
     if (!cell || !board.contains(cell)) return;
 
     queueMicrotask(() => {
+      if (board.classList.contains("cleared")) return;
       if (cell.classList.contains("mistake")) {
         announceGameStatus(inferMistakeReason(board, cell), "error");
         return;

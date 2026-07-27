@@ -1,4 +1,5 @@
 import { STAGES } from "./stages.js";
+import { buildPracticeStageSets } from "./game.js";
 import {
   PRACTICE_STAGE_BANK_FEATURE,
   getStageBankDescriptor,
@@ -64,6 +65,36 @@ export function validatePracticeStageBankPayload(
       { minimumStageCount: descriptor.stageCount }
     );
     problems.push(...validation.problems);
+
+    const difficultyCounts = { 1: 0, 2: 0, 3: 0 };
+    bank.stages.forEach((stage, index) => {
+      if (![1, 2, 3].includes(stage?.difficulty)) {
+        problems.push(`stages[${index}]: difficulty is required`);
+        return;
+      }
+      difficultyCounts[stage.difficulty]++;
+    });
+
+    const expectedDistribution = descriptor.difficultyDistribution || {};
+    for (const difficulty of [1, 2, 3]) {
+      const expected = Number(expectedDistribution[difficulty]);
+      if (
+        Number.isInteger(expected) &&
+        difficultyCounts[difficulty] !== expected
+      ) {
+        problems.push(
+          `difficulty ${difficulty} count must be ${expected}; got ${difficultyCounts[difficulty]}`
+        );
+      }
+    }
+
+    if (!problems.length) {
+      try {
+        buildPracticeStageSets(bank.stages);
+      } catch (_) {
+        problems.push("practice bank must provide a valid difficulty 1-2-3 set");
+      }
+    }
   }
 
   return { valid: problems.length === 0, problems };

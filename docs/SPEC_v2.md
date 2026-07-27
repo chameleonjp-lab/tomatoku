@@ -6,8 +6,8 @@
 - 公開名・リポジトリ名: `tomatooku`
 - 標準公開先: `https://chameleonjp.codeberg.page/tomatooku/`
 - 基準ブランチ: `main`
-- 更新日: 2026-07-21
-- 現在状態: 公式ランキング公開済み／ランダム練習84問接続済み／公開後実機確認待ち
+- 更新日: 2026-07-27
+- 現在状態: ランダム練習84問接続済み／描写・高速入力・取得競合の補修実装済み／Supabase関連情報削除済み／ランキング取得・送信停止中／公開後実機確認待ち
 
 ## 1. ゲーム概要
 
@@ -36,7 +36,7 @@ T011
 T021
 ```
 
-順序も固定し、全プレイヤーが同じ条件で遊ぶ。ランキング対象となる唯一のモードである。
+順序も固定し、全プレイヤーが同じ条件で遊ぶ。ランキング再開後に対象となる唯一のモードだが、テスト中は結果を送信しない。
 
 起動時またはテストで次を検証する。
 
@@ -85,7 +85,7 @@ generated/variable-stage-bank-v2.json
   人間承認済み84問完成バンク
 
 src/ranking-config.js
-  ブラウザ公開可能な接続設定と送信ゲート
+  ブラウザ公開可能な接続設定、取得ゲート、送信ゲート
 
 src/ranking.js
   共有Supabase RPC、通信状態、play ID単位の二重送信防止
@@ -101,6 +101,7 @@ src/styles.css / src/accessibility.css / src/accessibility.js
 
 ```text
 home
+preparing
 countdown
 playing
 stageTransition
@@ -111,7 +112,9 @@ retired
 主な遷移:
 
 ```text
-home -> countdown
+home -> preparing
+preparing -> countdown
+preparing -> home
 countdown -> playing
 countdown -> home
 playing -> stageTransition
@@ -225,7 +228,7 @@ POST /rest/v1/rpc/submit_score
   "p_display_name": "表示名",
   "p_game_slug": "tomatoku",
   "p_score": 4835,
-  "p_client_version": "tomatooku-web-2.2.0-ranking-live-v1"
+  "p_client_version": "tomatooku-web-2.3.0-test-ranking-off"
 }
 ```
 
@@ -252,6 +255,7 @@ updated_at
 - `mode === "official"`
 - play IDが空でない
 - ランキング設定が有効
+- `rankingsEnabled === true`
 - `submissionsEnabled === true`
 - 同一play IDでは1回だけ
 
@@ -259,15 +263,16 @@ updated_at
 
 ## 10. 送信ゲート
 
-`public.games`登録、共有RPC疎通、確認用データ削除まで完了している。現行公開設定は次のとおり。
+過去の疎通記録は残すが、2026年7月27日にテスト段階へ戻すためSupabaseの`tomatoku`関連情報を削除した。現行設定は次のとおり。
 
 ```js
-submissionsEnabled: true
+rankingsEnabled: false
+submissionsEnabled: false
 ```
 
-送信条件は§9をすべて満たす公式プレイに限定する。練習、設定不備、空のplay ID、不正な表示名・スコアは送信しない。
+停止中はランキングRPCを呼ばず、詳細ランキング導線も表示しない。公式・練習とも結果をサーバーへ保存しない。
 
-緊急停止時は`src/ranking-config.js`の送信ゲートを`false`へ戻す。DB登録やランキング取得を残したまま、新規スコア送信だけを停止できる。
+再開時は`public.games`再登録、権限、取得、公式1プレイ1送信の実疎通を行い、`rankingsEnabled`を先に、`submissionsEnabled`を最後に有効化する。
 
 ## 11. 通信状態
 
@@ -276,6 +281,7 @@ ok
 empty
 error
 not_configured
+disabled
 skipped
 ```
 
@@ -283,6 +289,7 @@ skipped
 - `empty`: 取得成功・0件
 - `error`: HTTP、タイムアウト、JSON、返却形式不正
 - `not_configured`: URLまたはPublishable key不足
+- `disabled`: テスト中のためランキング取得を明示停止
 - `skipped`: 練習または送信ゲートOFF
 
 タイムアウトは`AbortController`で実通信を中止する。
