@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import {
   createRankingClient,
   isConfigured,
+  isRankingEnabled,
   isSubmissionEnabled,
   normalizeDisplayName,
 } from "../src/ranking.js";
@@ -15,6 +16,7 @@ const CONFIG = {
   submitRpc: "submit_score",
   bestRankingRpc: "get_best_score_ranking",
   firstRankingRpc: "get_first_try_ranking",
+  rankingsEnabled: true,
   submissionsEnabled: true,
 };
 
@@ -42,7 +44,13 @@ async function test(name, fn) {
 
 await test("設定判定と送信ゲートを区別", () => {
   assert.equal(isConfigured(CONFIG), true);
+  assert.equal(isRankingEnabled(CONFIG), true);
   assert.equal(isSubmissionEnabled(CONFIG), true);
+  assert.equal(isRankingEnabled({ ...CONFIG, rankingsEnabled: false }), false);
+  assert.equal(
+    isSubmissionEnabled({ ...CONFIG, rankingsEnabled: false }),
+    false
+  );
   assert.equal(isSubmissionEnabled({ ...CONFIG, submissionsEnabled: false }), false);
   assert.equal(isConfigured({ ...CONFIG, supabaseUrl: "" }), false);
 });
@@ -88,6 +96,22 @@ await test("送信ゲートOFFの公式は通信しない", async () => {
     score: 100,
   });
   assert.equal(result.status, "skipped");
+  assert.equal(calls, 0);
+});
+
+await test("ランキング停止中は取得も通信しない", async () => {
+  let calls = 0;
+  const client = createRankingClient(
+    { ...CONFIG, rankingsEnabled: false, submissionsEnabled: false },
+    {
+      fetch: async () => {
+        calls++;
+        return jsonResponse([]);
+      },
+    }
+  );
+  const result = await client.fetchBestRanking(10);
+  assert.equal(result.status, "disabled");
   assert.equal(calls, 0);
 });
 

@@ -23,6 +23,7 @@ const DEFAULTS = {
   submitRpc: RANKING_CONFIG.submitRpc,
   bestRankingRpc: RANKING_CONFIG.bestRankingRpc,
   firstRankingRpc: RANKING_CONFIG.firstRankingRpc,
+  rankingsEnabled: RANKING_CONFIG.rankingsEnabled === true,
   submissionsEnabled: RANKING_CONFIG.submissionsEnabled === true,
 };
 
@@ -43,6 +44,9 @@ export const CONFIG = Object.freeze({
       OVERRIDES.supabaseAnonKey ||
       DEFAULTS.supabasePublishableKey
   ),
+  rankingsEnabled:
+    OVERRIDES.rankingsEnabled === true ||
+    (OVERRIDES.rankingsEnabled == null && DEFAULTS.rankingsEnabled),
   submissionsEnabled:
     OVERRIDES.submissionsEnabled === true ||
     (OVERRIDES.submissionsEnabled == null && DEFAULTS.submissionsEnabled),
@@ -72,7 +76,11 @@ export function isConfigured(config = CONFIG) {
 }
 
 export function isSubmissionEnabled(config = CONFIG) {
-  return isConfigured(config) && config.submissionsEnabled === true;
+  return isRankingEnabled(config) && config.submissionsEnabled === true;
+}
+
+export function isRankingEnabled(config = CONFIG) {
+  return isConfigured(config) && config.rankingsEnabled === true;
 }
 
 export function normalizeDisplayName(input) {
@@ -197,7 +205,7 @@ export function createRankingClient(config = CONFIG, dependencies = {}) {
     }
     if (!isSubmissionEnabled(effectiveConfig)) {
       return Promise.resolve(
-        baseResult("skipped", "公式ランキングは公開準備中です")
+        baseResult("skipped", "テスト中のため、今回の記録は保存されません")
       );
     }
 
@@ -252,6 +260,13 @@ export function createRankingClient(config = CONFIG, dependencies = {}) {
   async function fetchRankingByType(type, limit = 10) {
     if (!isConfigured(effectiveConfig)) {
       return rankingState("not_configured", [], "ランキングは未設定です");
+    }
+    if (effectiveConfig.rankingsEnabled !== true) {
+      return rankingState(
+        "disabled",
+        [],
+        "テスト中のためランキングを停止しています"
+      );
     }
     const isFirst = type === "first";
     const rpcName = isFirst

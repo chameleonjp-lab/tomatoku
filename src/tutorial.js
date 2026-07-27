@@ -137,7 +137,7 @@ function clearHighlights() {
 }
 
 async function sequence(myRun) {
-  const total = 11;
+  const total = 8;
   let step = 0;
   const tick = () => setProgress(++step / total);
 

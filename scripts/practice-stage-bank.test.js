@@ -84,6 +84,30 @@ await test("完成バンクpayloadは練習専用runtime契約へ合格", async 
   assert.equal(finalBank.stageCount, 84);
 });
 
+await test("difficulty欠落・分布不正は完成bankとして受け付けない", async () => {
+  const missingDifficulty = structuredClone(finalBank);
+  delete missingDifficulty.stages[0].difficulty;
+  const missingValidation =
+    validatePracticeStageBankPayload(missingDifficulty);
+  assert.equal(missingValidation.valid, false);
+  assert.ok(
+    missingValidation.problems.some((problem) =>
+      problem.includes("difficulty is required")
+    )
+  );
+
+  const wrongDistribution = structuredClone(finalBank);
+  wrongDistribution.stages[0].difficulty = 2;
+  const distributionValidation =
+    validatePracticeStageBankPayload(wrongDistribution);
+  assert.equal(distributionValidation.valid, false);
+  assert.ok(
+    distributionValidation.problems.some((problem) =>
+      problem.includes("difficulty 1 count")
+    )
+  );
+});
+
 await test("成功時は完成84問を返す", async () => {
   const result = await loadPracticeStageBank({
     feature: ENABLED_PRACTICE_FEATURE,
@@ -113,9 +137,14 @@ await test("feature gate無効時はfetchせず旧30問へ戻る", async () => {
 });
 
 await test("HTTP失敗・不正bank・通信例外は旧30問へフォールバック", async () => {
+  const missingDifficulty = structuredClone(finalBank);
+  missingDifficulty.stages.forEach((stage) => {
+    delete stage.difficulty;
+  });
   const cases = [
     [async () => response({}, { ok: false }), "http-error"],
     [async () => response({ ...finalBank, stageCount: 83 }), "invalid-bank"],
+    [async () => response(missingDifficulty), "invalid-bank"],
     [async () => { throw new Error("offline"); }, "network-error"],
   ];
   for (const [fetchImpl, reason] of cases) {

@@ -151,10 +151,14 @@ async function main() {
     hasTouch: true,
   });
   const page = await context.newPage();
+  let rpcRequests = 0;
+  let submitRequests = 0;
 
   await page.route("**/rest/v1/rpc/**", async (route) => {
+    rpcRequests++;
     const url = route.request().url();
     if (url.endsWith("/submit_score")) {
+      submitRequests++;
       await route.fulfill({
         status: 200,
         contentType: "application/json",
@@ -209,6 +213,20 @@ async function main() {
   await page.click("#howto-btn");
   await page.waitForSelector("#howto-modal.open");
   ok(
+    await page.$eval(
+      "#howto-modal .modal-close",
+      (element) =>
+        element.getBoundingClientRect().width >= 44 &&
+        element.getBoundingClientRect().height >= 44
+    ),
+    "モーダル閉じる操作は44px以上"
+  );
+  await page.waitForFunction(() =>
+    document
+      .querySelector("#howto-modal")
+      .contains(document.activeElement)
+  );
+  ok(
     await page.evaluate(() =>
       document.querySelector("#howto-modal").contains(document.activeElement)
     ),
@@ -237,6 +255,13 @@ async function main() {
   await page.click("#start-official-btn");
   ok((await page.textContent("#name-error")).length > 0, "名前必須");
 
+  await page.fill("#player-name", "\u200B");
+  await page.click("#start-official-btn");
+  ok(
+    (await page.textContent("#name-error")).includes("入力"),
+    "不可視文字だけの名前を拒否"
+  );
+
   await page.fill("#player-name", "テスター");
   await page.click("#start-official-btn");
   await page.waitForSelector("#screen-countdown.active");
@@ -245,8 +270,39 @@ async function main() {
   ok(!(await page.isVisible("#screen-game")), "カウントダウン中は盤面非表示");
 
   await waitForPlaying(page);
+  ok(
+    await page.evaluate(
+      () =>
+        document.querySelector("#quit-btn").getBoundingClientRect().bottom <=
+        window.innerHeight + 1
+    ),
+    "320×568の初期表示にホーム操作まで収まる"
+  );
 
   const firstSolution = solveBoard(await getRegions(page))[0];
+  const fastFirst = page.locator("#board .cell").nth(firstSolution[0]);
+  const fastSecond = page
+    .locator("#board .cell")
+    .nth(N + firstSolution[1]);
+  await fastFirst.tap();
+  await page.waitForTimeout(80);
+  await fastSecond.tap();
+  ok(
+    await page.evaluate(
+      ([firstCol, secondCol]) => {
+        const boardCells = document.querySelectorAll("#board .cell");
+        return (
+          boardCells[firstCol].classList.contains("filled") &&
+          boardCells[5 + secondCol].classList.contains("filled")
+        );
+      },
+      [firstSolution[0], firstSolution[1]]
+    ),
+    "100ms未満の連続タップを両方受け付ける"
+  );
+  await clickCell(page, 0, firstSolution[0]);
+  await clickCell(page, 1, firstSolution[1]);
+
   await clickCell(page, 0, firstSolution[0]);
   const otherCol = firstSolution[0] === 0 ? 2 : 0;
   await clickCell(page, 0, otherCol);
@@ -264,7 +320,22 @@ async function main() {
       `ステージ${stageIndex + 1}は公式モード`
     );
     await solveCurrentStage(page);
-    await page.waitForTimeout(1000);
+    if (stageIndex < OFFICIAL_IDS.length - 1) {
+      await page.waitForFunction(
+        (nextStageId) => {
+          const board = document.querySelector("#board");
+          const firstCell = board?.querySelector(".cell");
+          return (
+            board?.dataset.stageId === nextStageId &&
+            document.querySelector("#screen-game")?.classList.contains("active") &&
+            firstCell &&
+            !firstCell.disabled
+          );
+        },
+        OFFICIAL_IDS[stageIndex + 1],
+        { timeout: 6000 }
+      );
+    }
   }
   assertOfficialIds(ids);
 
@@ -278,17 +349,42 @@ async function main() {
     (await page.locator("#result-stage-times li").count()) === 3,
     "ステージ別時間3件"
   );
-  await page.waitForFunction(() =>
-    document.querySelector("#submit-state").textContent.includes("ランキングへ登録")
-  );
   ok(
-    (await page.textContent("#submit-state")).includes("ベスト 45.00秒"),
-    "ランキング送信成功表示"
+    (await page.textContent("#submit-state")).includes("記録は保存されません"),
+    "テスト中は記録を保存しない表示"
   );
-  ok(await page.isVisible("#result-detail-ranking-link"), "結果の詳細ランキング導線");
+  ok(!(await page.isVisible("#result-detail-ranking-link")), "停止中の詳細ランキングを隠す");
+  ok(submitRequests === 0, "ランキング送信リクエストなし");
+  ok(rpcRequests === 0, "ランキング取得リクエストなし");
 
   await page.click("#home-btn");
   await page.waitForSelector("#screen-home.active");
+
+  let releasePracticeBank;
+  await page.route("**/generated/variable-stage-bank-v2.json", async (route) => {
+    await new Promise((resolve) => {
+      releasePracticeBank = resolve;
+    });
+    await route.continue();
+  });
+  await page.click("#start-practice-btn");
+  await page.waitForSelector("#start-preparing:not([hidden])");
+  ok(
+    await page.$eval("#howto-btn", (element) => element.disabled),
+    "練習準備中は別操作を無効化"
+  );
+  for (let attempt = 0; attempt < 100 && !releasePracticeBank; attempt++) {
+    await page.waitForTimeout(10);
+  }
+  ok(typeof releasePracticeBank === "function", "練習bank取得を遅延できる");
+  await page.click("#cancel-start-btn");
+  releasePracticeBank();
+  await page.waitForFunction(() => document.querySelector("#start-preparing")?.hidden);
+  await page.waitForTimeout(150);
+  ok(await page.isVisible("#screen-home"), "練習準備を中止してホームを維持");
+  ok(!(await page.isVisible("#screen-countdown")), "中止した古い要求は開始しない");
+  await page.unroute("**/generated/variable-stage-bank-v2.json");
+
   await page.click("#start-practice-btn");
   await page.waitForSelector("#screen-countdown.active");
   ok((await page.textContent("#countdown-mode")).includes("ランダム"), "練習表示");

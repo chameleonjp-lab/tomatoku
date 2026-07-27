@@ -9,8 +9,12 @@ const root = path.resolve(__dirname, "..");
 const html = fs.readFileSync(path.join(root, "index.html"), "utf8");
 
 assert.equal(RANKING_CONFIG.gameSlug, "tomatoku");
-assert.equal(RANKING_CONFIG.submissionsEnabled, true);
-assert.equal(RANKING_CONFIG.clientVersion, "tomatooku-web-2.2.0-ranking-live-v1");
+assert.equal(RANKING_CONFIG.rankingsEnabled, false);
+assert.equal(RANKING_CONFIG.submissionsEnabled, false);
+assert.equal(
+  RANKING_CONFIG.clientVersion,
+  "tomatooku-web-2.3.0-test-ranking-off"
+);
 assert.equal(RANKING_CONFIG.submitRpc, "submit_score");
 assert.equal(RANKING_CONFIG.bestRankingRpc, "get_best_score_ranking");
 assert.equal(RANKING_CONFIG.firstRankingRpc, "get_first_try_ranking");
@@ -33,5 +37,7 @@ assert.match(html, /id="lab-link"/);
 assert.match(html, /id="detail-ranking-link"/);
 assert.match(html, /id="result-lab-link"/);
 assert.match(html, /id="result-detail-ranking-link"/);
+assert.equal((html.match(/data-ranking-only/g) || []).length, 4);
+assert.match(html, /id="detail-ranking-link"[\s\S]*data-ranking-only[\s\S]*hidden/);
 
 console.log("==== LAUNCH CONFIG TEST RESULT: PASS ====");
