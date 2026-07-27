@@ -50,6 +50,22 @@ T021（むずかしい）
 
 詳細ランキングへの導線は、ランキング停止中は画面へ表示しません。
 
+## Codeberg Pages
+
+GitHubの`main`を正式な開発基準とし、公開用ファイルだけをCodebergの`pages`ブランチへ自動反映する仕組みを用意しています。
+
+```text
+index.html
+src/
+generated/variable-stage-bank-v2.json
+```
+
+2026年7月27日時点では、Codebergの`chameleonjp/tomatooku`リポジトリ作成、Pages通知、GitHubの`CODEBERG_USERNAME`と`CODEBERG_TOKEN`登録が未確認です。これらを設定するまで公開ワークフローを本番利用しません。
+
+公開契約と設定手順:
+
+- `docs/CODEBERG_PAGES_DEPLOY.md`
+
 ## ルール
 
 - 各行に🍅は1個
