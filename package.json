@@ -13,7 +13,7 @@
     "audit:v2:bank": "node scripts/audit_stage_bank_v2.js",
     "audit:v2:variable-regions": "node scripts/audit_variable_region_sizes_v2.js",
     "verify": "node scripts/verify_stages.js",
-    "test": "node scripts/game.test.js && node scripts/ranking.test.js && node scripts/launch-config.test.js && node scripts/browser-launch.test.js && node scripts/documentation-state.test.js && node scripts/release-device-check.test.js && node scripts/accessibility.test.js && node scripts/variable-stage-contract.test.js && node scripts/variable-stage-review.test.js && node scripts/variable-stage-review-round1.test.js && node scripts/variable-stage-final-bank.test.js && node scripts/practice-stage-bank.test.js && npm run test:generator-v2",
+    "test": "node scripts/game.test.js && node scripts/ranking.test.js && node scripts/launch-config.test.js && node scripts/browser-launch.test.js && node scripts/documentation-state.test.js && node scripts/release-device-check.test.js && node scripts/codeberg-pages.test.js && node scripts/accessibility.test.js && node scripts/variable-stage-contract.test.js && node scripts/variable-stage-review.test.js && node scripts/variable-stage-review-round1.test.js && node scripts/variable-stage-final-bank.test.js && node scripts/practice-stage-bank.test.js && npm run test:generator-v2",
     "test:game": "node scripts/game.test.js",
     "test:ranking": "node scripts/ranking.test.js",
     "test:launch": "node scripts/launch-config.test.js",
@@ -36,6 +36,7 @@
     "test:documentation-state": "node scripts/documentation-state.test.js",
     "test:release-device-check": "node scripts/release-device-check.test.js",
     "test:browser-launch": "node scripts/browser-launch.test.js",
+    "test:codeberg-pages": "node scripts/codeberg-pages.test.js",
     "e2e:webkit": "PW_BROWSER=webkit node scripts/e2e.test.js",
     "e2e:practice-bank:webkit": "PW_BROWSER=webkit node scripts/practice-stage-bank.e2e.js"
   },
