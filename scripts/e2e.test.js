@@ -221,6 +221,11 @@ async function main() {
     ),
     "モーダル閉じる操作は44px以上"
   );
+  await page.waitForFunction(() =>
+    document
+      .querySelector("#howto-modal")
+      .contains(document.activeElement)
+  );
   ok(
     await page.evaluate(() =>
       document.querySelector("#howto-modal").contains(document.activeElement)
@@ -315,7 +320,22 @@ async function main() {
       `ステージ${stageIndex + 1}は公式モード`
     );
     await solveCurrentStage(page);
-    await page.waitForTimeout(1000);
+    if (stageIndex < OFFICIAL_IDS.length - 1) {
+      await page.waitForFunction(
+        (nextStageId) => {
+          const board = document.querySelector("#board");
+          const firstCell = board?.querySelector(".cell");
+          return (
+            board?.dataset.stageId === nextStageId &&
+            document.querySelector("#screen-game")?.classList.contains("active") &&
+            firstCell &&
+            !firstCell.disabled
+          );
+        },
+        OFFICIAL_IDS[stageIndex + 1],
+        { timeout: 6000 }
+      );
+    }
   }
   assertOfficialIds(ids);
 
