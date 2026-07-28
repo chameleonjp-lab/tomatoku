@@ -39,8 +39,8 @@ assert.match(plan, /ランダム練習primary:.*84問/);
 assert.match(plan, /REVIEW EXECUTION COMPLETED/);
 assert.match(plan, /rankingsEnabled=false/);
 assert.match(plan, /高速連続タップ/);
-assert.match(plan, /Codeberg Pages自動公開/);
-assert.match(plan, /external prerequisites pending/);
+assert.match(plan, /GitHub Pages自動公開/);
+assert.match(plan, /repository setting pending/);
 assert.doesNotMatch(plan, /ランダム練習: 現行30問から3問選出/);
 
 console.log("✓ 現行要件・仕様・実装計画は主要コード契約と一致");

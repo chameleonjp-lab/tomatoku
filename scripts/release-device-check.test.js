@@ -12,7 +12,7 @@ const plan = read("docs/IMPLEMENTATION_PLAN_v2.md");
 
 assert.match(
   checklist,
-  /prepared \/ test ranking disabled \/ human execution pending/
+  /prepared \/ test ranking disabled \/ repository setting and human execution pending/
 );
 assert.match(checklist, /同じ公開候補版で3回連続/);
 assert.match(checklist, /iPhone 17 Pro \/ Safari/);
@@ -28,7 +28,10 @@ assert.ok(checklist.includes("submissionsEnabled=false"));
 assert.ok(checklist.includes("rankingsEnabled=false"));
 assert.ok(checklist.includes("PRACTICE_STAGE_BANK_FEATURE.enabled=false"));
 assert.match(checklist, /WebGL \/ WebGPU描画機能消失試験: `対象外`/);
-assert.match(checklist, /ブラウザ操作、実機試験、Codeberg公開操作を実施しない/);
+assert.match(
+  checklist,
+  /ブラウザ操作、実機試験、GitHub Pages公開操作を実施しない/
+);
 assert.match(checklist, /公開確認完了 \| \*\*未承認\*\*/);
 assert.doesNotMatch(checklist, /- \[x\]/i);
 

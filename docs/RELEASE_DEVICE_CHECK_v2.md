@@ -3,15 +3,15 @@
 - 文書種別: 公開候補版の手動確認記録
 - 対象: `chameleonjp-lab/tomatooku`
 - 作成日: 2026-07-21
-- 状態: **prepared / test ranking disabled / human execution pending**
-- 標準公開先: `https://chameleonjp.codeberg.page/tomatooku/`
+- 状態: **prepared / test ranking disabled / repository setting and human execution pending**
+- 標準公開先: `https://chameleonjp-lab.github.io/tomatooku/`
 
-> この台帳を追加したPRでは、ブラウザ操作、実機試験、Codeberg公開操作を実施しない。チェック欄は人間が同一公開候補版を確認した時だけ更新し、台帳を用意したことを合格扱いしない。
+> この台帳を追加したPRでは、ブラウザ操作、実機試験、GitHub Pages公開操作を実施しない。チェック欄は人間が同一公開候補版を確認した時だけ更新し、台帳を用意したことを合格扱いしない。
 
 ## 1. 目的と判定単位
 
-- GitHub上の実装・自動テストと、Codeberg Pages上の公開状態・実機結果を混同しない。
-- 1回の確認期間では、同一のGitHub `main` SHA、同一のCodeberg公開内容、同一のfeature gate設定を使う。
+- GitHub上の実装・自動テストと、GitHub Pages上の公開状態・実機結果を混同しない。
+- 1回の確認期間では、同一のGitHub `main` SHA、同一のGitHub Pages公開内容、同一のfeature gate設定を使う。
 - 必須項目は同じ公開候補版で3回連続して合格させる。
 - コード、設定、配信内容が変わった場合は連続回数を0へ戻し、新しい候補版として確認する。
 - `未確認`、`失敗`、理由のない`対象外`が1件でも残る場合は公開確認完了にしない。
@@ -23,9 +23,9 @@
 | 候補版名 | 未記入 |
 | GitHub `main` SHA | 未記入 |
 | GitHub Actions run URL | 未記入 |
-| Codeberg公開URL | `https://chameleonjp.codeberg.page/tomatooku/` |
-| Codeberg反映SHAまたは対応する版 | 未記入 |
-| Codeberg反映確認日時 | 未記入 |
+| GitHub Pages公開URL | `https://chameleonjp-lab.github.io/tomatooku/` |
+| GitHub Pages反映SHAまたは対応する版 | 未記入 |
+| GitHub Pages反映確認日時 | 未記入 |
 | 公式bank | `legacy-v1` |
 | 練習primary bank | `candidate-v2-variable-4-6-final` |
 | 練習fallback bank | `legacy-v1` |
@@ -59,7 +59,7 @@ iPhone SE相当Chromium / WebKit E2EはGitHub Actionsの自動検証であり、
 
 ## 5. 公開・基本表示
 
-- [ ] Codeberg Pagesが候補版の内容を返し、真っ白な画面や意図しない再読み込みがない。
+- [ ] GitHub Pagesが候補版の内容を返し、真っ白な画面や意図しない再読み込みがない。
 - [ ] ホームが横スクロールせず、タイトル、説明、公式3問、ランダム練習の開始操作が欠けない。
 - [ ] 実験場リンクが正しい遷移先を開く。
 - [ ] ランキング停止中は詳細ランキングリンクとランキング一覧を表示しない。

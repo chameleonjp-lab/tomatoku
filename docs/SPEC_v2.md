@@ -4,10 +4,10 @@
 - 対象: `chameleonjp-lab/tomatooku`
 - `game_slug`: `tomatoku`
 - 公開名・リポジトリ名: `tomatooku`
-- 標準公開先: `https://chameleonjp.codeberg.page/tomatooku/`
+- 標準公開先: `https://chameleonjp-lab.github.io/tomatooku/`
 - 基準ブランチ: `main`
-- 更新日: 2026-07-27
-- 現在状態: ランダム練習84問接続済み／描写・高速入力・取得競合の補修実装済み／Supabase関連情報削除済み／ランキング取得・送信停止中／公開後実機確認待ち
+- 更新日: 2026-07-28
+- 現在状態: ランダム練習84問接続済み／描写・高速入力・取得競合の補修実装済み／Supabase関連情報削除済み／ランキング取得・送信停止中／GitHub Pages公開元設定・公開後実機確認待ち
 
 ## 1. ゲーム概要
 
@@ -426,7 +426,7 @@ E2E:
 
 公開後に人間が確認する残作業:
 
-- Codeberg Pagesへ最新`main`が反映されていること
+- GitHub Pagesへ最新`main`が反映されていること
 - iPhone 17 Pro Safariで公式送信と練習84問
 - iPhone 11 Pro
 - iPad Pro 2018の縦・横

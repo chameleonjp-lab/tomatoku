@@ -19,7 +19,7 @@
 | --- | --- |
 | game_slug | `tomatoku` |
 | title | トマトオク |
-| game_url | `https://chameleonjp.codeberg.page/tomatooku/` |
+| game_url | `https://chameleonjp-lab.github.io/tomatooku/` |
 | display_order | `33` |
 | release_date | `2026-07-19` |
 | is_active | `true` |
@@ -174,7 +174,7 @@ LAUNCH CONFIG TEST RESULT: PASS
 
 ## 9. 残る確認
 
-- Codeberg Pagesへ最新`main`が反映されたこと
+- GitHub Pagesへ最新`main`が反映されたこと
 - iPhone Safariから公式3問を通しプレイできること
 - 実ブラウザからの`submit_score`成功
 - 実験場トップへトマトオクが表示されること
@@ -204,5 +204,5 @@ where game_slug = 'tomatoku';
 
 - 画面とアクセシビリティの最終調整
 - WebKit / iPhone実機確認
-- Codeberg公開反映確認
+- GitHub Pages公開反映確認
 - 公開前の総合監査

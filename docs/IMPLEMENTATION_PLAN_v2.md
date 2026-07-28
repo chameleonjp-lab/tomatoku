@@ -3,8 +3,8 @@
 - 文書種別: 現行実装・残工程計画
 - 対象: `chameleonjp-lab/tomatooku`
 - 基準ブランチ: `main`
-- 更新日: 2026-07-27
-- 現在状態: 84問完成バンク・練習接続済み／描写・高速入力・取得競合の補修実装済み／Supabase関連情報削除済み／ランキング取得・送信停止中／Codeberg自動公開は外部設定待ち／公開後実機確認待ち
+- 更新日: 2026-07-28
+- 現在状態: 84問完成バンク・練習接続済み／描写・高速入力・取得競合の補修実装済み／Supabase関連情報削除済み／ランキング取得・送信停止中／GitHub Pages自動公開はリポジトリ設定待ち／公開後実機確認待ち
 
 ## 1. 運用ルール
 
@@ -605,12 +605,12 @@ review/variable-stage-review.html
 
 ### 7-8. 公開・実機確認台帳（implemented / human execution pending）
 
-- 同一公開候補版を特定するGitHub `main` SHAとCodeberg反映情報を記録
+- 同一公開候補版を特定するGitHub `main` SHAとGitHub Pages反映情報を記録
 - iPhone 17 Pro、iPhone 11 Pro、iPad Pro 2018縦横の確認欄を固定
 - 公式送信、練習84問、fallback、復帰、共有キャンセルを分離して記録
 - 30分継続、10回反復、バックグラウンド復帰10回、3回連続合格を明記
 - 公開停止条件、証跡、未適用項目の理由を同じ台帳へ残す
-- このPRではブラウザ操作・実機試験・Codeberg公開操作を行わない
+- このPRではブラウザ操作・実機試験・GitHub Pages公開操作を行わない
 
 固定成果物:
 
@@ -661,31 +661,30 @@ src/ranking-config.js
 scripts/e2e.test.js
 ```
 
-### 7-11. Codeberg Pages自動公開（implemented / external prerequisites pending）
+### 7-11. GitHub Pages自動公開（implemented / repository setting pending）
 
 - GitHub `main`へのpushと手動実行だけで起動
-- Pull RequestではCodebergへ送信しない
+- Pull Requestでは公開ワークフローを起動しない
 - 公開対象を`index.html`、`src/`、練習84問JSONへ限定
 - 公開物から文書、テスト、レビュー画面、設定資料を除外
 - HTML、CSS、JavaScriptのローカル参照切れを送信前に拒否
+- GitHub Pagesのリポジトリパスを外れる`/`始まりの参照を拒否
 - 84問バンクがruntime有効・ranking無効であることを検査
-- `CODEBERG_USERNAME`と`CODEBERG_TOKEN`を実行時だけ利用
-- トークンをURLとログへ埋め込まない
-- Codebergの`pages`へ通常pushし、強制pushと`main`変更を禁止
+- `actions/upload-pages-artifact`で検査済み公開物だけを登録
+- `actions/deploy-pages`で`github-pages`環境へ公開
+- 外部アクセストークン、Repository Secrets、公開専用ブランチを使わない
 
-外部の残条件:
+リポジトリ設定の残条件:
 
-- Codeberg `chameleonjp/tomatooku`公開リポジトリ作成
-- `pages`ブランチ用のPages通知設定
-- GitHub Repository Secrets 2件の登録
+- `Settings → Pages → Source`を`GitHub Actions`にする
 
 固定成果物:
 
 ```text
-.github/workflows/deploy-codeberg-pages.yml
-scripts/prepare-codeberg-pages.js
-scripts/codeberg-pages.test.js
-docs/CODEBERG_PAGES_DEPLOY.md
+.github/workflows/deploy-github-pages.yml
+scripts/prepare-github-pages.js
+scripts/github-pages.test.js
+docs/GITHUB_PAGES_DEPLOY.md
 ```
 
 ## 8. 公開・実機の継続確認
@@ -696,7 +695,7 @@ docs/CODEBERG_PAGES_DEPLOY.md
 docs/RELEASE_DEVICE_CHECK_v2.md
 ```
 
-台帳とCodeberg自動公開処理は作成済みだが、Codeberg側のリポジトリ・通知・秘密情報の設定、ブラウザ操作、実機確認、Codeberg反映確認は未実施である。
+台帳とGitHub Pages自動公開処理は作成済みだが、Pagesの公開元設定、ブラウザ操作、実機確認、GitHub Pages反映確認は未実施である。
 
 過去に接続確認済み（現在はSupabase登録削除・ゲート停止）:
 
@@ -711,7 +710,7 @@ docs/RELEASE_DEVICE_CHECK_v2.md
 
 公開後の人間確認待ち:
 
-- Codeberg Pagesへの最新`main`反映
+- GitHub Pagesへの最新`main`反映
 - iPhone 17 Proの表示・高速入力・練習84問
 - iPhone 11 Pro
 - iPad Pro縦横
@@ -734,4 +733,4 @@ docs/RELEASE_DEVICE_CHECK_v2.md
 - 候補バンクが独立検証済み
 - 練習モード切替が人間承認済み
 
-現時点では、84問完成バンク、ランダム練習先行接続、公式隔離、fallback、描写・高速入力・準備競合の補修、Codeberg Pages自動公開処理まで実装済みです。残工程はCodeberg側の外部設定、GitHub Actionsの継続成功、Codeberg Pages反映後の実機確認、Supabaseを再登録する時点でのランキング再開監査です。
+現時点では、84問完成バンク、ランダム練習先行接続、公式隔離、fallback、描写・高速入力・準備競合の補修、GitHub Pages自動公開処理まで実装済みです。残工程はPagesの公開元設定、GitHub Actionsの継続成功、GitHub Pages反映後の実機確認、Supabaseを再登録する時点でのランキング再開監査です。
