@@ -500,11 +500,16 @@ details.rules summary {
     inset 0 1px 0 rgba(255, 255, 255, 0.8);
 }
 
-.area-A { --cell-fill: var(--area-a); }
-.area-B { --cell-fill: var(--area-b); }
-.area-C { --cell-fill: var(--area-c); }
-.area-D { --cell-fill: var(--area-d); }
-.area-E { --cell-fill: var(--area-e); }
+.cell.area-A,
+.tcell.area-A { --cell-fill: var(--area-a); }
+.cell.area-B,
+.tcell.area-B { --cell-fill: var(--area-b); }
+.cell.area-C,
+.tcell.area-C { --cell-fill: var(--area-c); }
+.cell.area-D,
+.tcell.area-D { --cell-fill: var(--area-d); }
+.cell.area-E,
+.tcell.area-E { --cell-fill: var(--area-e); }
 
 /* エリア境界の太枠(色覚に依存せずエリアを区別できるように) */
 .cell.edge-top { border-top: 4px solid #253d2e; }

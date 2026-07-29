@@ -252,6 +252,53 @@ async function main() {
   await page.keyboard.press("Escape");
   await page.emulateMedia({ reducedMotion: "no-preference" });
 
+  await page.click("#tutorial-btn");
+  await page.waitForSelector("#tutorial-modal.open");
+  const tutorialAreas = await page.$$eval("#tutorial-board .tcell", (cells) => {
+    const labels = ["A", "B", "C", "D"];
+    return {
+      cellCount: cells.length,
+      areaCounts: Object.fromEntries(
+        labels.map((label) => [
+          label,
+          cells.filter((cell) => cell.classList.contains(`area-${label}`)).length,
+        ])
+      ),
+      areaColors: labels.map((label) => {
+        const cell = cells.find((candidate) =>
+          candidate.classList.contains(`area-${label}`)
+        );
+        return getComputedStyle(cell).backgroundColor;
+      }),
+    };
+  });
+  ok(tutorialAreas.cellCount === 16, "チュートリアルは16マス");
+  ok(
+    Object.values(tutorialAreas.areaCounts).every((count) => count === 4),
+    `チュートリアルはA〜D各4マス (${JSON.stringify(tutorialAreas.areaCounts)})`
+  );
+  ok(
+    new Set(tutorialAreas.areaColors).size === 4,
+    `チュートリアルの4エリアを別の色で表示 (${tutorialAreas.areaColors.join(", ")})`
+  );
+  await page.waitForTimeout(3000);
+  ok(
+    (await page.textContent("#tutorial-caption")).includes("4×4"),
+    "0.5倍速では3秒後も導入説明を表示"
+  );
+  ok(
+    (await page.locator("#tutorial-board .tcell.filled").count()) === 0,
+    "0.5倍速では3秒後も最初のトマトを置かない"
+  );
+  ok(
+    (await page.$eval("#tutorial-bar", (element) => element.style.width)) === "0%",
+    "0.5倍速では3秒後の進捗は0%"
+  );
+  await page.keyboard.press("Escape");
+  await page.waitForFunction(
+    () => !document.querySelector("#tutorial-modal").classList.contains("open")
+  );
+
   await page.click("#start-official-btn");
   ok((await page.textContent("#name-error")).length > 0, "名前必須");
 

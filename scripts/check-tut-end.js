@@ -11,9 +11,13 @@ const page = await ctx.newPage();
 await page.goto(`http://localhost:${PORT}/`,{waitUntil:"networkidle"});
 await page.click("#tutorial-btn");
 await page.waitForSelector("#tutorial-modal.open");
-// wait for cleared board (full sequence ~20s)
-await page.waitForSelector(".tboard.tcleared", { timeout: 25000 });
-await page.waitForTimeout(2500);
+// 0.5倍速の全シーケンス（約41.4秒）が最後の案内まで進むことを確認する。
+await page.waitForSelector(".tboard.tcleared", { timeout: 45000 });
+await page.waitForFunction(
+  () => document.querySelector("#tutorial-caption")?.textContent.includes("本番は"),
+  undefined,
+  { timeout: 7000 }
+);
 const filled = await page.evaluate(()=>document.querySelectorAll("#tutorial-board .tcell.filled").length);
 const okMarks = await page.evaluate(()=>document.querySelectorAll("#tutorial-board .tcell.mark-ok").length);
 const cap = (await page.textContent("#tutorial-caption")).replace(/\s+/g,' ').trim();
