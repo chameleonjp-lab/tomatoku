@@ -156,7 +156,7 @@ scripts/accessibility.test.js
 
 ## 5. 未確認
 
-実行環境からCodeberg Pagesへのアクセスは、DNSまたは管理ポリシーで拒否された。
+当時の公開候補URLへのアクセスは、DNSまたは管理ポリシーで拒否された。
 
 そのため次は未確認。
 
@@ -172,6 +172,6 @@ scripts/accessibility.test.js
 
 - PRのCIまたはCodex環境で`npm test`と`npm run e2e`
 - iPhone SE相当とiPhone 17 Pro実機確認
-- Codeberg Pages反映確認
+- GitHub Pages反映確認
 - 公式3問の人間プレイ確認
 - 公開前総合監査

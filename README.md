@@ -50,9 +50,15 @@ T021（むずかしい）
 
 詳細ランキングへの導線は、ランキング停止中は画面へ表示しません。
 
-## Codeberg Pages
+## GitHub Pages
 
-GitHubの`main`を正式な開発基準とし、公開用ファイルだけをCodebergの`pages`ブランチへ自動反映する仕組みを用意しています。
+正式公開先は次です。
+
+```text
+https://chameleonjp-lab.github.io/tomatooku/
+```
+
+GitHubの`main`が更新されると、公開用ファイルだけを検査してGitHub Pagesへ自動反映します。
 
 ```text
 index.html
@@ -60,11 +66,11 @@ src/
 generated/variable-stage-bank-v2.json
 ```
 
-2026年7月27日時点では、Codebergの`chameleonjp/tomatooku`リポジトリ作成、Pages通知、GitHubの`CODEBERG_USERNAME`と`CODEBERG_TOKEN`登録が未確認です。これらを設定するまで公開ワークフローを本番利用しません。
+Codebergへの送信、外部アクセストークン、公開専用ブランチは使いません。初回だけ、リポジトリのPages設定で公開元を`GitHub Actions`にします。
 
 公開契約と設定手順:
 
-- `docs/CODEBERG_PAGES_DEPLOY.md`
+- `docs/GITHUB_PAGES_DEPLOY.md`
 
 ## ルール
 
@@ -280,7 +286,7 @@ primary = candidate-v2-variable-4-6-final
 fallback = legacy-v1
 ```
 
-接続実装とChromium / WebKit自動テストは完了しています。残る工程はCodeberg Pages反映後の実機確認です。自動E2Eは実機確認の代用にはしません。
+接続実装とChromium / WebKit自動テストは完了しています。残る工程はGitHub Pages反映後の実機確認です。自動E2Eは実機確認の代用にはしません。
 
 詳細:
 

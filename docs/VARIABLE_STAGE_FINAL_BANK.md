@@ -236,7 +236,7 @@ docs/PRACTICE_STAGE_BANK_ROLLOUT.md
 
 ## 12. 公開後確認
 
-PRマージ・Codeberg Pages反映後に次を確認する。
+PRマージ・GitHub Pages反映後に次を確認する。
 
 - iPhone 17 Proで練習3問クリア
 - 可変4〜6マス境界の視認性

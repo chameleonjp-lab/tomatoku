@@ -4,10 +4,10 @@
 - 対象: `chameleonjp-lab/tomatooku`
 - 表示名: トマトオク
 - `game_slug`: `tomatoku`
-- 公開先: `https://chameleonjp.codeberg.page/tomatooku/`
+- 公開先: `https://chameleonjp-lab.github.io/tomatooku/`
 - 基準実装: `main`
-- 更新日: 2026-07-27
-- 現在状態: 練習84問接続済み／描写・高速入力・取得競合の補修実装済み／Supabase関連情報削除済み／ランキング取得・送信停止中／公開後実機確認待ち
+- 更新日: 2026-07-28
+- 現在状態: 練習84問接続済み／描写・高速入力・取得競合の補修実装済み／Supabase関連情報削除済み／ランキング取得・送信停止中／GitHub Pages公開元設定・公開後実機確認待ち
 
 > 本文は現行の製品要件である。実装・自動検証済みと、公開後の人間確認待ちを§16・§17で区別する。
 
@@ -253,15 +253,17 @@ client version
 
 ## 14. 公開・実験場連携
 
-- 標準公開先はCodeberg Pages
-- GitHubは開発・レビュー用
+- 標準公開先はGitHub Pages
+- GitHubは開発、レビュー、公開に使用する
 - 現在の複数ファイル・ES Modules構成を維持できる
 - 1ファイル化は任意の配布方法で、必須ではない
 - ホームと結果に実験場への導線を表示する
 - ランキング有効時だけ、ホームと結果に詳細ランキングへの導線を表示する
 - ランキング再開時は`public.games`へ`tomatoku`を再登録し、共通ランキングを利用する
 - URL群は公開先変更時に同時更新できるよう管理する
-- Codeberg Pages反映後に公開URLと各導線を実機で確認する
+- 公開物は`index.html`、`src/`、練習84問JSONだけに限定する
+- Pagesの公開元はGitHub Actionsとし、外部アクセストークンを使わない
+- GitHub Pages反映後に公開URLと各導線を実機で確認する
 
 ## 15. 安定性と復帰
 
@@ -294,7 +296,7 @@ client version
 
 公開後の人間確認待ち:
 
-- [ ] Codeberg Pagesへ最新`main`が反映されている
+- [ ] GitHub Pagesへ最新`main`が反映されている
 - [ ] iPhone 17 Pro実機で操作不能・横スクロール・主要欠けがない
 - [ ] iPhone 11 Proで長時間プレイと再開を確認する
 - [ ] iPad Pro 2018の縦・横で操作不能がない

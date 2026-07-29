@@ -26,7 +26,7 @@ import { playTutorial, stopTutorial } from "./tutorial.js";
 import { createPracticeStageBankLoader } from "./practice-stage-bank.js";
 
 const PLAYER_KEY = "tomatoku.playerName";
-const GAME_URL = "https://chameleonjp.codeberg.page/tomatooku/";
+const GAME_URL = "https://chameleonjp-lab.github.io/tomatooku/";
 const COUNTDOWN_STEPS = [
   { label: "3", durationMs: 650 },
   { label: "2", durationMs: 650 },

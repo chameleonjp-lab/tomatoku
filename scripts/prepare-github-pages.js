@@ -5,7 +5,7 @@ import { fileURLToPath } from "node:url";
 const SCRIPT_PATH = fileURLToPath(import.meta.url);
 const DEFAULT_ROOT = path.resolve(path.dirname(SCRIPT_PATH), "..");
 
-export const CODEBERG_PUBLIC_ENTRIES = Object.freeze([
+export const GITHUB_PAGES_PUBLIC_ENTRIES = Object.freeze([
   "index.html",
   "src",
   "generated/variable-stage-bank-v2.json",
@@ -22,15 +22,22 @@ function assertSafeOutputDirectory(rootDir, outputDir) {
   ) {
     throw new Error("output directory must be a child of the repository root");
   }
-  if (basename !== "_site" && !basename.startsWith(".codeberg-site-test-")) {
-    throw new Error("output directory must be _site or a dedicated test directory");
+  if (
+    basename !== "_site" &&
+    !basename.startsWith(".github-pages-site-test-")
+  ) {
+    throw new Error(
+      "output directory must be _site or a dedicated test directory"
+    );
   }
 }
 
 function copyEntry(sourcePath, destinationPath) {
   const stat = fs.lstatSync(sourcePath);
   if (stat.isSymbolicLink()) {
-    throw new Error(`symbolic links are not allowed in the public package: ${sourcePath}`);
+    throw new Error(
+      `symbolic links are not allowed in the public package: ${sourcePath}`
+    );
   }
   if (stat.isDirectory()) {
     fs.mkdirSync(destinationPath, { recursive: true });
@@ -53,7 +60,9 @@ export function listFiles(directory, prefix = "") {
     const relativePath = path.posix.join(prefix, name);
     const stat = fs.lstatSync(absolutePath);
     if (stat.isSymbolicLink()) {
-      throw new Error(`symbolic links are not allowed in the public package: ${relativePath}`);
+      throw new Error(
+        `symbolic links are not allowed in the public package: ${relativePath}`
+      );
     }
     if (stat.isDirectory()) {
       files.push(...listFiles(absolutePath, relativePath));
@@ -84,7 +93,8 @@ function localReferences(content, extension) {
       const reference = match[1];
       if (
         reference.startsWith("./") ||
-        reference.startsWith("../")
+        reference.startsWith("../") ||
+        (reference.startsWith("/") && !reference.startsWith("//"))
       ) {
         references.add(reference);
       }
@@ -102,6 +112,12 @@ export function verifyPublicReferences(siteDir) {
     const absolutePath = path.join(siteDir, relativePath);
     const content = fs.readFileSync(absolutePath, "utf8");
     for (const reference of localReferences(content, extension)) {
+      if (reference.startsWith("/")) {
+        problems.push(
+          `${relativePath}: GitHub Pagesのリポジトリ外を指す絶対パスです: ${reference}`
+        );
+        continue;
+      }
       const resolved = path.resolve(path.dirname(absolutePath), reference);
       const relativeTarget = path.relative(siteDir, resolved);
       if (
@@ -109,18 +125,22 @@ export function verifyPublicReferences(siteDir) {
         relativeTarget === ".." ||
         path.isAbsolute(relativeTarget)
       ) {
-        problems.push(`${relativePath}: public rootの外を参照しています: ${reference}`);
+        problems.push(
+          `${relativePath}: public rootの外を参照しています: ${reference}`
+        );
         continue;
       }
       if (!fs.existsSync(resolved) || !fs.statSync(resolved).isFile()) {
-        problems.push(`${relativePath}: 公開物に参照先がありません: ${reference}`);
+        problems.push(
+          `${relativePath}: 公開物に参照先がありません: ${reference}`
+        );
       }
     }
   }
   return problems;
 }
 
-export function prepareCodebergPages({
+export function prepareGitHubPages({
   rootDir = DEFAULT_ROOT,
   outputDir = path.join(rootDir, "_site"),
 } = {}) {
@@ -128,7 +148,7 @@ export function prepareCodebergPages({
   const resolvedOutput = path.resolve(outputDir);
   assertSafeOutputDirectory(resolvedRoot, resolvedOutput);
 
-  for (const entry of CODEBERG_PUBLIC_ENTRIES) {
+  for (const entry of GITHUB_PAGES_PUBLIC_ENTRIES) {
     const sourcePath = path.join(resolvedRoot, entry);
     if (!fs.existsSync(sourcePath)) {
       throw new Error(`required public entry is missing: ${entry}`);
@@ -137,7 +157,7 @@ export function prepareCodebergPages({
 
   fs.rmSync(resolvedOutput, { recursive: true, force: true });
   fs.mkdirSync(resolvedOutput, { recursive: true });
-  for (const entry of CODEBERG_PUBLIC_ENTRIES) {
+  for (const entry of GITHUB_PAGES_PUBLIC_ENTRIES) {
     copyEntry(path.join(resolvedRoot, entry), path.join(resolvedOutput, entry));
   }
 
@@ -150,7 +170,7 @@ export function prepareCodebergPages({
 }
 
 if (path.resolve(process.argv[1] || "") === SCRIPT_PATH) {
-  const files = prepareCodebergPages();
-  console.log(`Codeberg Pages public package: ${files.length} files`);
+  const files = prepareGitHubPages();
+  console.log(`GitHub Pages public package: ${files.length} files`);
   for (const file of files) console.log(file);
 }

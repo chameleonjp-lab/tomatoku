@@ -320,4 +320,4 @@ scripts/practice-stage-bank.e2e.js
 - fallback E2E成功
 - ランキング隔離E2E成功
 - feature gate停止手順が文書化済み
-- Codeberg Pages反映後の実機確認完了
+- GitHub Pages反映後の実機確認完了

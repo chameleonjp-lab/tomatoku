@@ -162,7 +162,7 @@ not_configured  URLまたはPublishable key不足
 ```text
 game_slug: tomatoku
 title: トマトオク
-game_url: https://chameleonjp.codeberg.page/tomatooku/
+game_url: https://chameleonjp-lab.github.io/tomatooku/
 top_ranking_type: best
 score_order: asc
 score_unit: 秒
