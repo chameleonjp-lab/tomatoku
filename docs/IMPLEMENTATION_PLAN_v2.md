@@ -687,6 +687,26 @@ scripts/github-pages.test.js
 docs/GITHUB_PAGES_DEPLOY.md
 ```
 
+### 7-12. チュートリアルのエリア表示・再生速度（implemented / automated tests included）
+
+- 4×4盤面のA〜Dを本番盤面と同じ4色で常時表示
+- 灰色の既定値がエリア色を上書きしない詳細度へCSSを修正
+- 説明の待ち時間を共通設定`TUTORIAL_PLAYBACK_RATE=0.5`で2倍化
+- 🍅の出現、誤り時の揺れ、進捗バーなど短いCSS演出の時間は維持
+- 専用静的テストとChromium・WebKit共通E2Eで色と3秒時点の進行を固定
+- 手動確認スクリプトの完了待ちを約41.4秒の新しい進行へ同期
+
+固定成果物:
+
+```text
+src/tutorial.js
+src/styles.css
+scripts/tutorial.test.js
+scripts/e2e.test.js
+scripts/check-tut-end.js
+scripts/shot-tutorial.js
+```
+
 ## 8. 公開・実機の継続確認
 
 実施記録の正本:

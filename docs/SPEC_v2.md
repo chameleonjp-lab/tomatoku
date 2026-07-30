@@ -91,7 +91,7 @@ src/ranking.js
   共有Supabase RPC、通信状態、play ID単位の二重送信防止
 
 src/tutorial.js
-  4×4チュートリアル
+  本番と同じ色別エリアを表示し、0.5倍速で進む4×4チュートリアル
 
 src/styles.css / src/accessibility.css / src/accessibility.js
   モバイル優先UIとアクセシビリティ補助

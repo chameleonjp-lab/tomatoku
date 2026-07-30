@@ -38,13 +38,19 @@ await page.click("#tutorial-btn");
 await page.waitForSelector("#tutorial-modal.open");
 const caps = [];
 for (let i = 0; i < 8; i++) {
-  await page.waitForTimeout(1600);
+  await page.waitForTimeout(3200);
   const cap = await page.textContent("#tutorial-caption");
   const filled = await page.evaluate(() => document.querySelectorAll("#tutorial-board .tcell.filled").length);
   const bar = await page.evaluate(() => document.querySelector("#tutorial-bar").style.width);
-  caps.push(`t=${(i+1)*1.6}s filled=${filled} bar=${bar} :: ${cap.replace(/\s+/g,' ').trim()}`);
+  caps.push(`t=${(i+1)*3.2}s filled=${filled} bar=${bar} :: ${cap.replace(/\s+/g,' ').trim()}`);
   if (i === 3) await page.screenshot({ path: path.join(OUT, "shot-tutorial-mid.png") });
 }
+await page.waitForSelector(".tboard.tcleared", { timeout: 15000 });
+await page.waitForFunction(
+  () => document.querySelector("#tutorial-caption")?.textContent.includes("本番は"),
+  undefined,
+  { timeout: 7000 }
+);
 await page.screenshot({ path: path.join(OUT, "shot-tutorial-end.png") });
 console.log(caps.join("\n"));
 console.log("cleared board present:", await page.evaluate(() => !!document.querySelector(".tboard.tcleared")));

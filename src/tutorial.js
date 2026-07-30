@@ -10,6 +10,7 @@
 
 const T = 4;
 const REGIONS = ["AABB", "AABB", "CCDD", "CCDD"];
+export const TUTORIAL_PLAYBACK_RATE = 0.5;
 const SOLUTION = [
   [0, 1],
   [1, 3],
@@ -78,12 +79,16 @@ function setProgress(progress) {
   el("#tutorial-bar").style.width = `${Math.round(progress * 100)}%`;
 }
 
+export function tutorialDelayMs(baseMs) {
+  return baseMs / TUTORIAL_PLAYBACK_RATE;
+}
+
 function delay(ms, myRun) {
   return new Promise((resolve, reject) => {
     setTimeout(() => {
       if (myRun !== runId) reject(new Error("cancelled"));
       else resolve();
-    }, ms);
+    }, tutorialDelayMs(ms));
   });
 }
 
