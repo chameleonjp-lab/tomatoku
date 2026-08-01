@@ -94,6 +94,6 @@ id-token: write
 - `main`更新後の公開ワークフローが成功する。
 - 公開URLが`index.html`と84問JSONを返す。
 - 公開物が14ファイルに限られ、文書、テスト、秘密情報を含まない。
-- ゲーム内の共有先と、将来Supabaseへ再登録する`game_url`がGitHub Pagesを指す。
+- ゲーム内の共有先と、Supabaseへ再登録済みの`game_url`がGitHub Pagesを指す。
 
-実機確認とSupabaseランキング再登録は、この自動公開契約とは別の工程として扱う。
+実機確認とSupabaseランキングの運用確認は、この自動公開契約とは別の工程として扱う。
