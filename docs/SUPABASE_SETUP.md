@@ -27,7 +27,7 @@ export const RANKING_CONFIG = {
   supabaseUrl: "公開Supabase URL",
   supabasePublishableKey: "ブラウザ公開用Publishable key",
   gameSlug: "tomatoku",
-  clientVersion: "tomatooku-web-2.4.0-ranking-restored-v1",
+  clientVersion: "tomatooku-web-2.6.0-random-official-v1",
   timeoutMs: 8000,
   submitRpc: "submit_score",
   bestRankingRpc: "get_best_score_ranking",
@@ -90,7 +90,7 @@ apikey: {SUPABASE_PUBLISHABLE_KEY}
   "p_display_name": "表示名",
   "p_game_slug": "tomatoku",
   "p_score": 4835,
-  "p_client_version": "tomatooku-web-2.4.0-ranking-restored-v1"
+  "p_client_version": "tomatooku-web-2.6.0-random-official-v1"
 }
 ```
 
@@ -102,7 +102,7 @@ apikey: {SUPABASE_PUBLISHABLE_KEY}
 - `p_score`がPostgreSQL integer範囲内の有限な非負整数
 - 同一play IDは1回だけ
 
-公式3問だけを送信する。ランダム練習は設定に関係なく送信しない。
+公式モードだけを送信する。ランダム練習は設定に関係なく送信しない。
 
 ## 4. ランキング取得RPC
 
@@ -202,4 +202,4 @@ descriptionとshare textもGitHub Pagesの公開先に合わせて登録済み�
 - 実験場トップ・詳細ランキングへの反映
 - iPhone実機通信
 
-GitHub Pages反映後にiPhone Safariで公式3問を完了し、実験場トップ、詳細ランキング、送信結果を確認する。
+GitHub Pages反映後にiPhone Safariで公式モードを完了し、実験場トップ、詳細ランキング、送信結果を確認する。

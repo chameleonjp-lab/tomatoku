@@ -5,23 +5,23 @@
 - manifest: `generated/variable-stage-bank-v2.json`
 - Stage Schema: v2
 - Bank Schema: v1
-- 状態: active for random practice only / release pending
-- 更新日: 2026-07-20
+- 状態: active for official and random practice / release pending
+- 更新日: 2026-08-02
 
 ## 1. 目的
 
-可変エリア4〜6マスの候補108問と、承認済みレビュー第1巡の判断から固定した84問を、ランダム練習だけで使用する。
+可変エリア4〜6マスの候補108問と、承認済みレビュー第1巡の判断から固定した84問を、公式とランダム練習の共通問題バンクとして使用する。
 
-公式3問と公式ランキングの経路は`legacy-v1`へ固定したまま分離する。
+公式は本バンクから難易度別に3問をランダム選出し、公式モードだけランキングへ送信する。
 
 ```text
-ACTIVE_STAGE_BANK_ID = legacy-v1
+ACTIVE_STAGE_BANK_ID = candidate-v2-variable-4-6-final
 ACTIVE_PRACTICE_STAGE_BANK_ID = candidate-v2-variable-4-6-final
 final.runtimeEnabled = true
-final.rankingEligible = false
+final.rankingEligible = true
 ```
 
-本バンクのruntime有効化はランダム練習だけを意味し、ランキング対象化を意味しない。
+本バンクのruntime有効化は公式とランダム練習を意味する。ランキング対象かどうかはバンクではなくゲームモードで分ける。
 
 ## 2. 生成元
 
@@ -56,11 +56,11 @@ manifestには候補プールとレビューJSONのSHA-256を記録する。生�
 {
   "schemaVersion": 1,
   "id": "candidate-v2-variable-4-6-final",
-  "status": "active-practice-only",
+  "status": "active-official-and-practice",
   "runtimeEnabled": true,
-  "rankingEligible": false,
+  "rankingEligible": true,
   "stageSchemaVersion": 2,
-  "generatorVersion": "2.8.0-variable-final-bank.2",
+  "generatorVersion": "2.9.0-random-official.1",
   "stageCount": 84,
   "rejectedStageCount": 24
 }
@@ -74,8 +74,8 @@ manifestには候補プールとレビューJSONのSHA-256を記録する。生�
 - ID重複なし
 - D4 canonical重複なし
 - 各盤面が一意解
-- runtimeは練習専用で有効
-- rankingは無効
+- runtimeは公式・練習で有効
+- rankingは公式モードで有効
 - 出典SHA-256を保持
 - 決定論的再生成
 
@@ -158,7 +158,7 @@ npm run test:practice-stage-bank
 
 - レビューkeep 84問とのID完全一致
 - 完成バンク専用status
-- runtime練習専用有効・ranking無効
+- runtime公式・練習有効・公式ranking有効
 - 候補プールSHA-256
 - レビューJSON SHA-256
 - Stage Schema v2独立validator
@@ -167,7 +167,7 @@ npm run test:practice-stage-bank
 - metadata完全性
 - bank catalog登録
 - 再生成結果のJSON完全一致
-- 公式active bankとの分離
+- 公式・練習active bankの一致
 - feature gateと旧30問fallback
 
 CIでは次も行う。
@@ -182,18 +182,17 @@ npm run e2e:practice-bank
 
 ```text
 candidate-v2-variable-4-6-final.status
-= active-practice-only
+= active-official-and-practice
 
 candidate-v2-variable-4-6-final.runtimeEnabled
 = true
 
 candidate-v2-variable-4-6-final.rankingEligible
-= false
+= true
 ```
 
-公式用`ACTIVE_STAGE_BANK_ID`は`legacy-v1`のままとする。
-
-練習用`ACTIVE_PRACTICE_STAGE_BANK_ID`だけを完成バンクへ向ける。
+公式用`ACTIVE_STAGE_BANK_ID`と練習用`ACTIVE_PRACTICE_STAGE_BANK_ID`は、
+どちらも完成バンクへ向ける。ランキング送信の可否はゲームモードで分ける。
 
 ## 9. Runtime loader
 
@@ -203,11 +202,12 @@ candidate-v2-variable-4-6-final.rankingEligible
 src/practice-stage-bank.js
 ```
 
-ランダム練習開始時だけmanifestを遅延取得し、ID・status・stageCount・Stage Schema v2を検証する。
+公式またはランダム練習の開始時にmanifestを遅延取得し、ID・status・stageCount・Stage Schema v2を検証する。
 
-公式開始時はmanifestを取得しない。
+公式開始時もmanifestを取得し、失敗時は別の問題へ切り替えず開始を止める。
 
-取得または検証に失敗した場合は`legacy-v1`の旧30問へ自動fallbackする。
+取得または検証に失敗した場合、公式は開始を止める。ランダム練習だけは
+`legacy-v1`へ自動fallbackする。
 
 ## 10. Feature gate
 
@@ -215,7 +215,8 @@ src/practice-stage-bank.js
 PRACTICE_STAGE_BANK_FEATURE.enabled = true
 ```
 
-緊急停止時は`false`へ変更する。無効時は完成バンクJSONを取得せず、旧30問へ即時復帰する。
+緊急停止時は`false`へ変更する。無効時は完成バンクJSONを取得せず、
+公式は開始を止め、ランダム練習だけが`legacy-v1`へ復帰する。
 
 詳細:
 
@@ -225,7 +226,7 @@ docs/PRACTICE_STAGE_BANK_ROLLOUT.md
 
 ## 11. 保持する不変条件
 
-- 公式`T001 / T011 / T021`
+- 公式・練習の共通ランダム選出
 - 公式ランキング契約
 - 公式1プレイ1送信
 - 練習ランキング送信なし
@@ -243,7 +244,7 @@ PRマージ・GitHub Pages反映後に次を確認する。
 - 難易度1→2→3
 - 練習再プレイ
 - 低速回線・オフライン時fallback
-- 公式3問が従来どおり
+- 公式が完成バンクから難易度別にランダム出題される
 - 公式ランキング送信が正常
 - 練習結果がランキングへ送信されない
 

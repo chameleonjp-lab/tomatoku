@@ -1,10 +1,12 @@
-# ランダム練習84問バンク 接続・ロールバック契約
+# ランダム練習先行接続・ロールバック契約（履歴）
+
+> この文書は、完成バンクを練習だけへ先行接続した当時の履歴であり、現在の実装契約ではない。現行仕様は`docs/VARIABLE_STAGE_FINAL_BANK.md`、`docs/SPEC_v2.md`、`docs/REQUIREMENTS_v2.md`を参照する。
 
 - 対象: `chameleonjp-lab/tomatooku`
 - 対象モード: ランダム練習のみ
 - 練習バンク: `candidate-v2-variable-4-6-final`
 - fallbackバンク: `legacy-v1`
-- 状態: implemented / release pending
+- 状態: superseded / historical record
 - 更新日: 2026-07-21
 
 ## 1. 目的

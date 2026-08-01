@@ -88,7 +88,7 @@ test("完成バンク状態と生成器versionを固定", () => {
   assert.equal(committed.status, VARIABLE_FINAL_BANK_STATUS);
   assert.equal(committed.generatorVersion, VARIABLE_FINAL_BANK_GENERATOR_VERSION);
   assert.equal(committed.runtimeEnabled, true);
-  assert.equal(committed.rankingEligible, false);
+  assert.equal(committed.rankingEligible, true);
   assert.equal(committed.stageSchemaVersion, 2);
 });
 
@@ -152,8 +152,8 @@ test("同じ入力からコミット済みmanifestを完全再現", () => {
   );
 });
 
-test("bank catalogは完成バンクを練習専用runtimeとして登録", () => {
-  assert.equal(ACTIVE_STAGE_BANK_ID, "legacy-v1");
+test("bank catalogは完成バンクを公式・練習共通として登録", () => {
+  assert.equal(ACTIVE_STAGE_BANK_ID, VARIABLE_FINAL_BANK_ID);
   assert.equal(
     ACTIVE_PRACTICE_STAGE_BANK_ID,
     resolveActivePracticeStageBankId(PRACTICE_STAGE_BANK_FEATURE)
@@ -163,7 +163,7 @@ test("bank catalogは完成バンクを練習専用runtimeとして登録", () =
   assert.equal(descriptor.stageCount, 84);
   assert.equal(descriptor.status, VARIABLE_FINAL_BANK_STATUS);
   assert.equal(descriptor.runtimeEnabled, true);
-  assert.equal(descriptor.rankingEligible, false);
+  assert.equal(descriptor.rankingEligible, true);
   assert.equal(assertCandidateBankRemainsInactive(), true);
   assert.equal(assertPracticeStageBankRouting(), true);
 });

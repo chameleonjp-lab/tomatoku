@@ -2,10 +2,11 @@
  * トマトオク ゲームロジック (DOM 非依存)
  *
  * v2:
- * - 公式: 固定3問を同じ順序で出題
- * - 練習: 有効な難易度1/2/3の組からランダム出題
+ * - 公式・練習: 共通バンクの有効な難易度1/2/3の組からランダム出題
  * - 記録値: 実時間 + 誤タップ3秒 + ヒント30秒（100分の1秒単位）
  */
+
+import { ACTIVE_RANDOM_STAGE_BANK_ID } from "./stage-bank-config.js";
 
 import { STAGES } from "./stages.js";
 
@@ -22,8 +23,6 @@ export const GAME_MODE = Object.freeze({
   OFFICIAL: "official",
   PRACTICE: "practice",
 });
-
-export const OFFICIAL_STAGE_IDS = Object.freeze(["T001", "T011", "T021"]);
 
 export const ADJUSTED_TIME = Object.freeze({
   MISTAKE_CENTISECONDS: 300,
@@ -77,39 +76,9 @@ function stagesByDifficulty(stageBank = STAGES) {
   return groups;
 }
 
-export function selectOfficialStages(
-  stageIds = OFFICIAL_STAGE_IDS,
-  stageBank = STAGES
-) {
-  if (!Array.isArray(stageIds) || stageIds.length !== 3) {
-    throw new Error("公式ステージIDは3件必要です");
-  }
-  if (new Set(stageIds).size !== 3) {
-    throw new Error("公式ステージIDが重複しています");
-  }
-
-  const byId = new Map(stageBank.map((stage) => [stage.id, stage]));
-  const selected = stageIds.map((id) => byId.get(id));
-  if (selected.some((stage) => !stage)) {
-    throw new Error("公式ステージがステージバンクに存在しません");
-  }
-
-  const difficulties = selected.map((stage) => stage.difficulty);
-  if (difficulties.join(",") !== "1,2,3") {
-    throw new Error("公式ステージは難易度1→2→3の順である必要があります");
-  }
-
-  const signatures = selected.map(solutionSignature);
-  if (new Set(signatures).size !== 3) {
-    throw new Error("公式ステージの正解配置が重複しています");
-  }
-
-  return selected;
-}
-
-export function buildPracticeStageSets(stageBank = STAGES) {
+export function buildRandomStageSets(stageBank = STAGES) {
   if (!Array.isArray(stageBank)) {
-    throw new TypeError("練習ステージバンクは配列である必要があります");
+    throw new TypeError("ランダムステージバンクは配列である必要があります");
   }
   const groups = stagesByDifficulty(stageBank);
   const sets = [];
@@ -126,29 +95,32 @@ export function buildPracticeStageSets(stageBank = STAGES) {
   }
 
   if (!sets.length) {
-    throw new Error("有効な練習ステージ組を生成できません");
+    throw new Error("有効なランダムステージ組を生成できません");
   }
   return sets;
 }
 
-const LEGACY_PRACTICE_STAGE_SETS = buildPracticeStageSets();
-const PRACTICE_STAGE_SET_CACHE = new WeakMap();
+/** 既存の開発用呼び出し名との互換。 */
+export const buildPracticeStageSets = buildRandomStageSets;
 
-function practiceStageSetsFor(stageBank) {
-  if (stageBank === STAGES) return LEGACY_PRACTICE_STAGE_SETS;
+const LEGACY_RANDOM_STAGE_SETS = buildRandomStageSets();
+const RANDOM_STAGE_SET_CACHE = new WeakMap();
+
+function randomStageSetsFor(stageBank) {
+  if (stageBank === STAGES) return LEGACY_RANDOM_STAGE_SETS;
   if (!Array.isArray(stageBank)) {
-    throw new TypeError("練習ステージバンクは配列である必要があります");
+    throw new TypeError("ランダムステージバンクは配列である必要があります");
   }
-  let sets = PRACTICE_STAGE_SET_CACHE.get(stageBank);
+  let sets = RANDOM_STAGE_SET_CACHE.get(stageBank);
   if (!sets) {
-    sets = buildPracticeStageSets(stageBank);
-    PRACTICE_STAGE_SET_CACHE.set(stageBank, sets);
+    sets = buildRandomStageSets(stageBank);
+    RANDOM_STAGE_SET_CACHE.set(stageBank, sets);
   }
   return sets;
 }
 
-export function selectPracticeStages(rand = Math.random, stageBank = STAGES) {
-  const sets = practiceStageSetsFor(stageBank);
+export function selectRandomStages(rand = Math.random, stageBank = STAGES) {
+  const sets = randomStageSetsFor(stageBank);
   const value = Number(rand());
   const normalized = Number.isFinite(value)
     ? Math.min(0.999999999999, Math.max(0, value))
@@ -156,9 +128,14 @@ export function selectPracticeStages(rand = Math.random, stageBank = STAGES) {
   return sets[Math.floor(normalized * sets.length)];
 }
 
+/** 既存の開発用呼び出し名との互換。 */
+export function selectPracticeStages(rand = Math.random, stageBank = STAGES) {
+  return selectRandomStages(rand, stageBank);
+}
+
 /** v1呼び出し名の互換。 */
 export function pickStages(rand = Math.random, stageBank = STAGES) {
-  return selectPracticeStages(rand, stageBank);
+  return selectRandomStages(rand, stageBank);
 }
 
 export function buildRegionMap(regions) {
@@ -327,21 +304,27 @@ export class GameSession {
       options.mode === GAME_MODE.OFFICIAL
         ? GAME_MODE.OFFICIAL
         : GAME_MODE.PRACTICE;
+    const suppliedStageBank = options.stageBank || options.practiceStageBank;
+    const suppliedStageBankId = String(
+      options.stageBankId || options.practiceStageBankId || "legacy-v1"
+    );
+    const suppliedStageBankFallback = Boolean(
+      options.stageBankFallback ?? options.practiceStageBankFallback
+    );
+    if (
+      this.mode === GAME_MODE.OFFICIAL &&
+      (!Array.isArray(suppliedStageBank) ||
+        suppliedStageBankId !== ACTIVE_RANDOM_STAGE_BANK_ID ||
+        suppliedStageBankFallback)
+    ) {
+      throw new Error("公式モードには承認済みの問題バンクが必要です");
+    }
+    this.stageBank = suppliedStageBank || STAGES;
     this.practiceStageBank =
-      this.mode === GAME_MODE.PRACTICE
-        ? options.practiceStageBank || STAGES
-        : null;
-    this.stageBankId =
-      this.mode === GAME_MODE.OFFICIAL
-        ? "legacy-v1"
-        : String(options.practiceStageBankId || "legacy-v1");
-    this.stageBankFallback =
-      this.mode === GAME_MODE.PRACTICE &&
-      Boolean(options.practiceStageBankFallback);
-    this.stages =
-      this.mode === GAME_MODE.OFFICIAL
-        ? selectOfficialStages(options.officialStageIds)
-        : selectPracticeStages(rand, this.practiceStageBank);
+      this.mode === GAME_MODE.PRACTICE ? this.stageBank : null;
+    this.stageBankId = suppliedStageBankId;
+    this.stageBankFallback = suppliedStageBankFallback;
+    this.stages = selectRandomStages(rand, this.stageBank);
     this.index = 0;
     this.states = this.stages.map((stage) => new StageState(stage));
     this.mistakeCount = 0;

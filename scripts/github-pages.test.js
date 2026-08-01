@@ -55,15 +55,15 @@ try {
     assert.equal(files.includes(forbiddenFile), false);
   }
 
-  const practiceBank = JSON.parse(
+  const randomBank = JSON.parse(
     fs.readFileSync(
       path.join(OUTPUT, "generated/variable-stage-bank-v2.json"),
       "utf8"
     )
   );
-  assert.equal(practiceBank.stageCount, 84);
-  assert.equal(practiceBank.runtimeEnabled, true);
-  assert.equal(practiceBank.rankingEligible, false);
+  assert.equal(randomBank.stageCount, 84);
+  assert.equal(randomBank.runtimeEnabled, true);
+  assert.equal(randomBank.rankingEligible, true);
 } finally {
   fs.rmSync(OUTPUT, { recursive: true, force: true });
 }

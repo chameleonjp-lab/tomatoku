@@ -212,8 +212,8 @@ test("共通2クラスには距離1の同時採用なし", () => {
   );
 });
 
-test("現行バンクと候補バンクの安全境界を維持", () => {
-  assert.equal(ACTIVE_STAGE_BANK_ID, "legacy-v1");
+test("現行完成バンクと候補バンクの安全境界を維持", () => {
+  assert.equal(ACTIVE_STAGE_BANK_ID, "candidate-v2-variable-4-6-final");
   assert.equal(assertCandidateBankRemainsInactive(), true);
 });
 

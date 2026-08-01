@@ -8,7 +8,7 @@
 
 ## 1. 目的
 
-公式3問の補正タイムを、カメレオンJPの実験場で使用している共通ランキングへ安全に接続する。
+公式モードのランダム3問による補正タイムを、カメレオンJPの実験場で使用している共通ランキングへ安全に接続する。
 
 ランダム練習は引き続きランキング対象外とする。
 
@@ -36,7 +36,7 @@
 説明:
 
 ```text
-5×5の畑に🍅を置き、公式3問の補正タイムを競うパズル
+5×5の畑に🍅を置き、公式モードの補正タイムを競うパズル
 ```
 
 ### Data API読取権限
@@ -125,12 +125,17 @@ players_left = 0
 
 `public.games`の`tomatoku`登録だけを残した。ゲーム統計は`total_play_count=0`、`player_count=0`へ戻っている。
 
+2026年8月2日の読み取り専用再確認では、固定出題版の実プレイが1件記録されていた。
+現行RPCは`game_slug`だけで集計し、`client_version`では世代分離しない。ランダム出題版の公開前に、
+この旧記録をリセットするか、別slugまたはサーバー側の世代分離を採用するかを明示的に決める。
+判断が完了するまでは公開停止条件とし、無断削除しない。
+
 ## 6. クライアント設定
 
 `src/ranking-config.js`:
 
 ```text
-clientVersion = tomatooku-web-2.4.0-ranking-restored-v1
+clientVersion = tomatooku-web-2.6.0-random-official-v1
 rankingsEnabled = true
 submissionsEnabled = true
 ```
@@ -178,7 +183,7 @@ LAUNCH CONFIG TEST RESULT: PASS
 ## 9. 残る確認
 
 - GitHub Pagesへ最新`main`が反映されたこと
-- iPhone Safariから公式3問を通しプレイできること
+- iPhone Safariから公式モードを通しプレイできること
 - iPhone Safariからの`submit_score`成功
 - 実験場トップへトマトオクが表示されること
 - 詳細ランキングで初回・ベストが小数2桁の秒表示になること

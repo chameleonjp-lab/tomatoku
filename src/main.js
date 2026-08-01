@@ -23,7 +23,7 @@ import {
   normalizeDisplayName,
 } from "./ranking.js";
 import { playTutorial, stopTutorial } from "./tutorial.js";
-import { createPracticeStageBankLoader } from "./practice-stage-bank.js";
+import { createRandomStageBankLoader } from "./practice-stage-bank.js";
 import {
   isSoundEnabled,
   isSoundSupported,
@@ -64,7 +64,7 @@ let countdownTimerIds = [];
 let transitionTimerId = null;
 let toastTimerId = null;
 let lastHudPaintAt = 0;
-const ensurePracticeStageBank = createPracticeStageBankLoader();
+const ensureRandomStageBank = createRandomStageBankLoader();
 let startInFlight = false;
 let startRequestId = 0;
 const rankingRequestIds = new Map();
@@ -79,7 +79,7 @@ function gameUrl() {
 }
 
 function modeLabel(mode) {
-  return mode === GAME_MODE.OFFICIAL ? "公式3問" : "ランダム練習";
+  return mode === GAME_MODE.OFFICIAL ? "公式モード" : "ランダム練習";
 }
 
 function phaseScreenId(nextPhase) {
@@ -178,7 +178,7 @@ function syncSoundControl() {
   icon.textContent = enabled ? "🔊" : "🔇";
 }
 
-function setHomePreparing(preparing, message = "練習問題を準備しています…") {
+function setHomePreparing(preparing, message = "問題を準備しています…") {
   const home = $("#screen-home");
   const card = $("#home-card");
   const panel = $("#start-preparing");
@@ -309,9 +309,9 @@ async function startNamedGame(name, mode) {
   setPhase(PHASE.PREPARING);
 
   try {
-    let practiceBank = null;
-    if (mode === GAME_MODE.PRACTICE) {
-      practiceBank = await ensurePracticeStageBank();
+    const randomBank = await ensureRandomStageBank();
+    if (mode === GAME_MODE.OFFICIAL && randomBank.fallback) {
+      throw new Error("公式用の問題を読み込めませんでした");
     }
 
     if (
@@ -326,8 +326,8 @@ async function startNamedGame(name, mode) {
     startInFlight = false;
     setHomePreparing(false);
     if (error) error.textContent = "";
-    beginCountdown(name, mode, practiceBank);
-    if (practiceBank?.fallback) {
+    beginCountdown(name, mode, randomBank);
+    if (mode === GAME_MODE.PRACTICE && randomBank.fallback) {
       setTimeout(() => showToast("従来の練習問題で開始します"), 0);
     }
   } catch (startError) {
@@ -430,15 +430,15 @@ function cancelActivePlay({ goHome = true } = {}) {
   }
 }
 
-function beginCountdown(name, mode, practiceBank = null) {
+function beginCountdown(name, mode, randomBank = null) {
   cancelActivePlay({ goHome: false });
   resetSubmission();
 
   session = new GameSession(name, Math.random, {
     mode,
-    practiceStageBank: practiceBank?.stages,
-    practiceStageBankId: practiceBank?.bankId,
-    practiceStageBankFallback: practiceBank?.fallback,
+    stageBank: randomBank?.stages,
+    stageBankId: randomBank?.bankId,
+    stageBankFallback: randomBank?.fallback,
   });
   activePlayId = session.playId;
   const playId = activePlayId;

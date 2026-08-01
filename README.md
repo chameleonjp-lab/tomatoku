@@ -4,15 +4,9 @@
 
 ## ゲームモード
 
-### 公式3問
+### 公式モード
 
-全員が同じ問題を同じ順番で遊びます。
-
-```text
-T001（やさしい）
-T011（ふつう）
-T021（むずかしい）
-```
+承認済みの共通問題バンクから、やさしい・ふつう・むずかしいを1問ずつランダムに選びます。
 
 記録は、実際に操作した時間へペナルティを加えた「補正タイム」です。短いほど好成績です。
 
@@ -23,18 +17,18 @@ T021（むずかしい）
 + ヒント数 × 30秒
 ```
 
-公式3問はランキング対象です。完了時に補正タイムを1回だけ送信します。
+公式モードはランキング対象です。完了時に補正タイムを1回だけ送信します。
 
 ### ランダム練習
 
-難易度1・2・3から有効な3問組をランダムに選びます。ステージIDと正解配置は同一プレイ内で重複しません。練習結果はランキングへ送信しません。
+公式と同じ問題バンクから、難易度1・2・3の有効な3問組をランダムに選びます。ステージIDと正解配置は同一プレイ内で重複しません。練習結果はランキングへ送信しません。
 
 ## ランキング状態
 
 2026年8月1日、共有Supabaseの`public.games`へ`tomatoku`を再登録しました。Publishable keyを使った送信、初回ランキング、ベストランキング、プレイ集計を確認し、確認用データは削除済みです。
 
 - 現在: `rankingsEnabled=true`、`submissionsEnabled=true`
-- 公式3問: 1プレイにつき1回送信
+- 公式モード: 1プレイにつき1回送信
 - ランダム練習: 常にランキング対象外
 - `game_slug`: `tomatoku`
 - 表示名・リポジトリ名・公開パス: `tomatooku`
@@ -263,22 +257,21 @@ review/decisions/variable-stage-review-round1.json
 
 ```text
 generated/variable-stage-bank-v2.json
-candidate-v2-variable-4-6-final.status = active-practice-only
+candidate-v2-variable-4-6-final.status = active-official-and-practice
 candidate-v2-variable-4-6-final.runtimeEnabled = true
-candidate-v2-variable-4-6-final.rankingEligible = false
-ACTIVE_STAGE_BANK_ID = legacy-v1
+candidate-v2-variable-4-6-final.rankingEligible = true
+ACTIVE_STAGE_BANK_ID = candidate-v2-variable-4-6-final
 ACTIVE_PRACTICE_STAGE_BANK_ID = candidate-v2-variable-4-6-final
 ```
 
-### Slice 10：ランダム練習への先行接続
+### Slice 10：ランダム出題への接続
 
-84問完成バンクをランダム練習だけへ接続しました。
+完成バンクを公式とランダム練習へ接続しました。
 
-- 公式3問は`T001 / T011 / T021`のまま
-- 公式開始時は完成バンクJSONを取得しない
-- 練習は84問から難易度1→2→3を出題
+- 公式と練習は同じ完成バンクから難易度1→2→3を出題
+- 公式は読込失敗時に別問題へ切り替えず開始を止める
 - 練習結果はランキング対象外
-- JSON取得・schema検証失敗時は旧30問へ自動fallback
+- 練習はJSON取得・schema検証失敗時に旧30問へ自動fallback
 - feature gateを無効化すると即時に旧30問へ戻せる
 
 ```text
@@ -300,7 +293,7 @@ fallback = legacy-v1
 - `docs/VARIABLE_STAGE_REVIEW_TOOL.md`
 - `docs/VARIABLE_STAGE_REVIEW_ROUND1.md`
 - `docs/VARIABLE_STAGE_FINAL_BANK.md`
-- `docs/PRACTICE_STAGE_BANK_ROLLOUT.md`
+- `docs/PRACTICE_STAGE_BANK_ROLLOUT.md`（練習先行接続時の履歴）
 - `docs/RELEASE_DEVICE_CHECK_v2.md`
 
 ## 画面フロー
@@ -348,7 +341,7 @@ home
 localStorage["tomatoku.playerName"]
 ```
 
-公式3問の完了時は、プレイヤー名、補正タイム、ゲーム識別子、クライアント版をランキングへ送信します。ランダム練習は送信しません。ブラウザ内へ保存するのはプレイヤー名だけです。本名、メールアドレス、電話番号を入力しない案内を画面に表示します。
+公式モードの完了時は、プレイヤー名、補正タイム、ゲーム識別子、クライアント版をランキングへ送信します。ランダム練習は送信しません。ブラウザ内へ保存するのはプレイヤー名だけです。本名、メールアドレス、電話番号を入力しない案内を画面に表示します。
 
 ## ローカル実行
 
@@ -391,7 +384,7 @@ npm run test:practice-stage-bank          # 練習bank routing・fallback契約
 npm run e2e                              # 公開ゲームChromium E2E
 npm run e2e:webkit                       # 公開ゲームWebKit E2E
 npm run e2e:review                       # レビュー画面iPhone SE相当E2E
-npm run e2e:practice-bank                 # 公式隔離・練習84問・fallback Chromium E2E
+npm run e2e:practice-bank                 # 公式・練習共通bankとfallback Chromium E2E
 npm run e2e:practice-bank:webkit          # 同じ練習契約のWebKit E2E
 npm run serve                            # ローカルHTTPサーバー
 ```

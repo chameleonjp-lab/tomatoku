@@ -1,19 +1,26 @@
-export const ACTIVE_STAGE_BANK_ID = "legacy-v1";
-
-export const PRACTICE_STAGE_BANK_FEATURE = Object.freeze({
+export const RANDOM_STAGE_BANK_FEATURE = Object.freeze({
   enabled: true,
   primaryBankId: "candidate-v2-variable-4-6-final",
   fallbackBankId: "legacy-v1",
 });
+export const PRACTICE_STAGE_BANK_FEATURE = RANDOM_STAGE_BANK_FEATURE;
 
-export function resolveActivePracticeStageBankId(
-  feature = PRACTICE_STAGE_BANK_FEATURE
+export function resolveActiveRandomStageBankId(
+  feature = RANDOM_STAGE_BANK_FEATURE
 ) {
   return feature.enabled ? feature.primaryBankId : feature.fallbackBankId;
 }
 
+export function resolveActivePracticeStageBankId(
+  feature = RANDOM_STAGE_BANK_FEATURE
+) {
+  return resolveActiveRandomStageBankId(feature);
+}
+
+export const ACTIVE_STAGE_BANK_ID = resolveActiveRandomStageBankId();
+export const ACTIVE_RANDOM_STAGE_BANK_ID = ACTIVE_STAGE_BANK_ID;
 export const ACTIVE_PRACTICE_STAGE_BANK_ID =
-  resolveActivePracticeStageBankId();
+  ACTIVE_RANDOM_STAGE_BANK_ID;
 
 export const STAGE_BANK_CATALOG = Object.freeze({
   "legacy-v1": Object.freeze({
@@ -21,9 +28,9 @@ export const STAGE_BANK_CATALOG = Object.freeze({
     source: "src/stages.js",
     stageCount: 30,
     runtimeEnabled: true,
-    rankingEligible: true,
+    rankingEligible: false,
     status: "active",
-    description: "現在の公式3問と練習fallbackが利用する既存30問バンク",
+    description: "ランダム練習の読込失敗時だけ利用する既存30問バンク",
   }),
   "candidate-v2": Object.freeze({
     id: "candidate-v2",
@@ -85,10 +92,10 @@ export const STAGE_BANK_CATALOG = Object.freeze({
     }),
     difficultyDistribution: Object.freeze({ 1: 28, 2: 28, 3: 28 }),
     runtimeEnabled: true,
-    rankingEligible: false,
-    status: "active-practice-only",
+    rankingEligible: true,
+    status: "active-official-and-practice",
     requiresHumanDecision: false,
-    description: "承認済み84問をランダム練習だけで利用する完成バンク",
+    description: "承認済み問題を公式とランダム練習で利用する完成バンク",
   }),
 });
 
@@ -126,9 +133,6 @@ export function assertPracticeStageBankRouting() {
   const fallback = getStageBankDescriptor(
     PRACTICE_STAGE_BANK_FEATURE.fallbackBankId
   );
-  if (ACTIVE_STAGE_BANK_ID !== "legacy-v1") {
-    throw new Error("official active bank must remain legacy-v1");
-  }
   const expectedActiveId = resolveActivePracticeStageBankId();
   if (ACTIVE_PRACTICE_STAGE_BANK_ID !== expectedActiveId) {
     throw new Error("practice active bank must follow the feature gate");
@@ -140,14 +144,19 @@ export function assertPracticeStageBankRouting() {
   ) {
     throw new Error("practice active bank does not match the selected route");
   }
-  if (!primary.runtimeEnabled || primary.rankingEligible) {
-    throw new Error("practice final bank must be runtime enabled and ranking ineligible");
+  if (ACTIVE_STAGE_BANK_ID !== primary.id) {
+    throw new Error("official and practice must share the active random bank");
   }
-  if (primary.status !== "active-practice-only") {
-    throw new Error("practice final bank status must be active-practice-only");
+  if (!primary.runtimeEnabled || !primary.rankingEligible) {
+    throw new Error("random final bank must be runtime and ranking enabled");
+  }
+  if (primary.status !== "active-official-and-practice") {
+    throw new Error("random final bank status must cover official and practice");
   }
   if (!fallback.runtimeEnabled || fallback.id !== "legacy-v1") {
     throw new Error("practice fallback must be legacy-v1");
   }
   return true;
 }
+
+export const assertRandomStageBankRouting = assertPracticeStageBankRouting;

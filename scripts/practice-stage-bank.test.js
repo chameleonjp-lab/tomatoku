@@ -12,7 +12,6 @@ import {
 import {
   GAME_MODE,
   GameSession,
-  OFFICIAL_STAGE_IDS,
   solutionSignature,
 } from "../src/game.js";
 import {
@@ -57,8 +56,8 @@ function response(body, { ok = true } = {}) {
   };
 }
 
-await test("公式バンクと練習バンクのactive IDを分離", async () => {
-  assert.equal(ACTIVE_STAGE_BANK_ID, "legacy-v1");
+await test("公式と練習は同じactive問題バンクを使う", async () => {
+  assert.equal(ACTIVE_STAGE_BANK_ID, PRACTICE_STAGE_BANK_FEATURE.primaryBankId);
   assert.equal(
     ACTIVE_PRACTICE_STAGE_BANK_ID,
     resolveActivePracticeStageBankId()
@@ -75,12 +74,12 @@ await test("公式バンクと練習バンクのactive IDを分離", async () =>
   assert.equal(assertPracticeStageBankRouting(), true);
 });
 
-await test("完成バンクpayloadは練習専用runtime契約へ合格", async () => {
+await test("完成バンクpayloadは公式・練習共通契約へ合格", async () => {
   const validation = validatePracticeStageBankPayload(finalBank);
   assert.equal(validation.valid, true, validation.problems.join("; "));
   assert.equal(finalBank.runtimeEnabled, true);
-  assert.equal(finalBank.rankingEligible, false);
-  assert.equal(finalBank.status, "active-practice-only");
+  assert.equal(finalBank.rankingEligible, true);
+  assert.equal(finalBank.status, "active-official-and-practice");
   assert.equal(finalBank.stageCount, 84);
 });
 
@@ -246,24 +245,27 @@ await test("完成bankを注入した練習セッションは難易度1→2→3"
   assert.equal(new Set(session.stages.map(solutionSignature)).size, 3);
 });
 
-await test("公式セッションは練習bankを渡しても固定3問", async () => {
+await test("公式セッションも完成bankから難易度別にランダム選出", async () => {
   const session = new GameSession("A", () => 0.42, {
     mode: GAME_MODE.OFFICIAL,
-    playId: "official-isolated",
-    practiceStageBank: finalBank.stages,
-    practiceStageBankId: finalBank.id,
+    playId: "official-random",
+    stageBank: finalBank.stages,
+    stageBankId: finalBank.id,
   });
-  assert.equal(session.stageBankId, "legacy-v1");
-  assert.deepEqual(session.stages.map((stage) => stage.id), OFFICIAL_STAGE_IDS);
+  assert.equal(session.stageBankId, finalBank.id);
+  assert.deepEqual(session.stages.map((stage) => stage.difficulty), [1, 2, 3]);
+  assert.ok(session.stages.every((stage) => stage.id.startsWith("STG-")));
+  assert.equal(new Set(session.stages.map((stage) => stage.id)).size, 3);
+  assert.equal(new Set(session.stages.map(solutionSignature)).size, 3);
 });
 
-await test("完成bank descriptorは練習runtimeのみ有効", async () => {
+await test("完成bank descriptorは公式・練習とランキングで有効", async () => {
   const descriptor = getStageBankDescriptor(
     PRACTICE_STAGE_BANK_FEATURE.primaryBankId
   );
   assert.equal(descriptor.runtimeEnabled, true);
-  assert.equal(descriptor.rankingEligible, false);
-  assert.equal(descriptor.status, "active-practice-only");
+  assert.equal(descriptor.rankingEligible, true);
+  assert.equal(descriptor.status, "active-official-and-practice");
   assert.equal(descriptor.stageCount, 84);
 });
 

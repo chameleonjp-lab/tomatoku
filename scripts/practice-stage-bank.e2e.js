@@ -153,9 +153,36 @@ async function main() {
       await page.fill("#player-name", "公式隔離");
       await page.click("#start-official-btn");
       await waitForPlaying(page);
-      ok((await page.getAttribute("#board", "data-stage-id")) === "T001", "公式はT001から開始");
-      ok((await page.getAttribute("#board", "data-stage-bank-id")) === "legacy-v1", "公式はlegacy-v1固定");
-      ok(finalBankRequests === 0, "公式開始は完成バンクJSONを取得しない");
+      ok(
+        /^STG-[0-9a-f]{8}$/.test(
+          await page.getAttribute("#board", "data-stage-id")
+        ),
+        "公式は完成バンクから開始"
+      );
+      ok(
+        (await page.getAttribute("#board", "data-stage-bank-id")) ===
+          ACTIVE_PRACTICE_STAGE_BANK_ID,
+        "公式と練習は同じ完成バンクを使う"
+      );
+      ok(finalBankRequests === 1, "公式開始時に完成バンクJSONを取得");
+      await context.close();
+    }
+
+    {
+      const { context, page } = await createMobilePage(browser);
+      await page.route("**/generated/variable-stage-bank-v2.json", async (route) => {
+        await route.fulfill({ status: 503, contentType: "application/json", body: "{}" });
+      });
+      await page.goto(`http://127.0.0.1:${PORT}/index.html`);
+      await page.fill("#player-name", "公式読込失敗");
+      await page.click("#start-official-btn");
+      await page.waitForFunction(
+        () => document.querySelector("#name-error")?.textContent.includes("開始できません"),
+        null,
+        { timeout: 5000 }
+      );
+      ok(await page.isVisible("#screen-home"), "公式読込失敗時はホームを維持");
+      ok(!(await page.isVisible("#screen-countdown")), "公式は別問題へ切り替えて開始しない");
       await context.close();
     }
 
