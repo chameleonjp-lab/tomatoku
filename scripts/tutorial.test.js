@@ -22,4 +22,8 @@ for (const label of ["A", "B", "C", "D"]) {
   assert.match(styles, selector);
 }
 
+assert.match(styles, /\.tcell \.tmark\s*\{[\s\S]*?top:\s*50%;[\s\S]*?left:\s*50%/);
+assert.match(styles, /font-size:\s*clamp\(2\.1rem,\s*12vw,\s*2\.85rem\)/);
+assert.match(styles, /translate\(-50%,\s*-50%\)\s*scale\(1\)/);
+
 console.log("✓ チュートリアルは4エリアを色分けし、説明を0.5倍速で進める");

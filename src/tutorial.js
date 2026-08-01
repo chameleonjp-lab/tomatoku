@@ -8,6 +8,8 @@
  * 各行・各列・各エリアに🍅は1個、上下左右斜めで隣接禁止。
  */
 
+import { playCorrectSound, playIncorrectSound } from "./sound.js";
+
 const T = 4;
 const REGIONS = ["AABB", "AABB", "CCDD", "CCDD"];
 export const TUTORIAL_PLAYBACK_RATE = 0.5;
@@ -94,11 +96,15 @@ function delay(ms, myRun) {
 
 function place(r, c, mark) {
   cells[r][c].classList.add("filled");
-  if (mark === "ok") cells[r][c].classList.add("mark-ok");
+  if (mark === "ok") {
+    cells[r][c].classList.add("mark-ok");
+    playCorrectSound();
+  }
 }
 
 function ghostBad(r, c) {
   cells[r][c].classList.add("ghost-bad", "mark-bad");
+  playIncorrectSound();
 }
 
 function clearGhost(r, c) {

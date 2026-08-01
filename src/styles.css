@@ -294,6 +294,64 @@ input[type="text"]:focus {
   font-size: 0.96rem;
 }
 
+.sound-setting {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 52px;
+  padding: 7px 8px 7px 12px;
+  border: 1px solid #d8e2d9;
+  border-radius: 14px;
+  background: #f6f9f5;
+  color: var(--ink);
+}
+
+.sound-setting strong,
+.sound-setting-description {
+  display: block;
+}
+
+.sound-setting strong {
+  font-size: 0.88rem;
+}
+
+.sound-setting-description {
+  margin-top: 2px;
+  color: var(--ink-soft);
+  font-size: 0.72rem;
+}
+
+.sound-toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  min-width: 88px;
+  min-height: 44px;
+  padding: 8px 12px;
+  border: 2px solid #cbd7cd;
+  border-radius: 999px;
+  background: #fff;
+  color: var(--ink-soft);
+  font: inherit;
+  font-size: 0.84rem;
+  font-weight: 800;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+
+.sound-toggle[aria-checked="true"] {
+  border-color: #3f7b51;
+  background: #e2f2e5;
+  color: #1f6235;
+}
+
+.sound-toggle:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
 .preparing-panel {
   display: grid;
   grid-template-columns: auto 1fr auto;
@@ -395,6 +453,12 @@ details.rules summary {
   font-weight: 950;
   font-variant-numeric: tabular-nums;
   line-height: 1.1;
+}
+
+#countdown-value.is-start-label {
+  font-size: clamp(1.45rem, 7vw, 1.9rem);
+  letter-spacing: 0.04em;
+  white-space: nowrap;
 }
 
 /* --- ゲーム画面 ヘッダ(HUD) --- */
@@ -859,29 +923,39 @@ details.rules summary {
 /* ✓ / ✗ マーク */
 .tcell .tmark {
   position: absolute;
-  top: -6px;
-  right: -4px;
-  font-size: 0.95rem;
+  top: 50%;
+  left: 50%;
+  z-index: 2;
+  display: grid;
+  place-items: center;
+  width: 1em;
+  height: 1em;
+  font-size: clamp(2.1rem, 12vw, 2.85rem);
   font-weight: 900;
+  line-height: 1;
   opacity: 0;
-  transform: scale(0.4);
+  transform: translate(-50%, -50%) scale(0.4);
   transition: opacity 0.15s ease, transform 0.2s ease;
-}
-.tcell.mark-ok .tmark {
-  content: "";
+  pointer-events: none;
 }
 .tcell.mark-ok .tmark::after {
   content: "✓";
   color: #1f7a32;
+  -webkit-text-stroke: 2px #fff;
+  paint-order: stroke fill;
+  text-shadow: 0 2px 4px rgba(6, 28, 13, 0.42);
 }
 .tcell.mark-bad .tmark::after {
   content: "✗";
   color: var(--tomato-dark);
+  -webkit-text-stroke: 2px #fff;
+  paint-order: stroke fill;
+  text-shadow: 0 2px 4px rgba(55, 8, 5, 0.42);
 }
 .tcell.mark-ok .tmark,
 .tcell.mark-bad .tmark {
   opacity: 1;
-  transform: scale(1);
+  transform: translate(-50%, -50%) scale(1);
 }
 .tboard.tcleared {
   box-shadow: 0 0 0 4px var(--accent), var(--shadow);
