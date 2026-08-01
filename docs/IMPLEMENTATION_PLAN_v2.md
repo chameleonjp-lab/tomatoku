@@ -3,8 +3,8 @@
 - 文書種別: 現行実装・残工程計画
 - 対象: `chameleonjp-lab/tomatooku`
 - 基準ブランチ: `main`
-- 更新日: 2026-07-28
-- 現在状態: 84問完成バンク・練習接続済み／描写・高速入力・取得競合の補修実装済み／Supabase関連情報削除済み／ランキング取得・送信停止中／GitHub Pages自動公開はリポジトリ設定待ち／公開後実機確認待ち
+- 更新日: 2026-08-01
+- 現在状態: 84問完成バンク・練習接続済み／描写・高速入力・取得競合の補修実装済み／Supabase再登録・ランキング取得・送信再開／GitHub Pages自動公開はリポジトリ設定待ち／公開後実機確認待ち
 
 ## 1. 運用ルール
 
@@ -51,9 +51,9 @@
 - 短い補正タイムが上位
 - `score_scale=100`
 - `score_decimals=2`
-- 再開後は公式1プレイにつき送信1回
-- 現在は`rankingsEnabled=false`、`submissionsEnabled=false`
-- テスト中は取得・送信・詳細ランキング導線を停止
+- 公式1プレイにつき送信1回
+- 現在は`rankingsEnabled=true`、`submissionsEnabled=true`
+- 取得・公式送信・詳細ランキング導線を有効化
 
 ## 3. 完了済みwork package
 
@@ -106,16 +106,16 @@
 - 強制カラーモード
 - 保存内容・個人情報注意
 
-### 3-6. 公式ランキング公開（過去完了・現在停止）
+### 3-6. 公式ランキング再開
 
-状態: **completed historically / disabled for test**
+状態: **completed / restored 2026-08-01**
 
-- `public.games`へ登録
+- `public.games`へ`tomatoku`を表示順34で再登録
 - `anon` SELECT権限とRLS確認
-- 送信、初回、ベスト、プレイ回数の実疎通
+- Publishable keyで2回送信し、初回4834、ベスト4500、プレイ回数2を確認
 - テストデータ削除
-- 2026年7月27日にSupabaseの`tomatoku`関連情報を削除
-- 現在は`rankingsEnabled=false`、`submissionsEnabled=false`
+- 削除後に`score_runs=0`、`game_scores=0`、確認用player=0を確認
+- 現在は`rankingsEnabled=true`、`submissionsEnabled=true`
 
 ### 3-7. CI
 
@@ -648,7 +648,7 @@ scripts/browser-launch.test.js
 - 不可視文字だけのプレイヤー名を開始前に拒否
 - 練習bankのdifficulty必須・28/28/28分布・有効3問組を起動前検証
 - 練習取得中の準備表示、中止、古い要求の無効化を追加
-- テスト段階に合わせてランキング取得・送信を両方停止
+- この作業時点のテスト段階に合わせてランキング取得・送信を両方停止（2026年8月1日に別作業で再開）
 
 固定成果物:
 
@@ -717,7 +717,7 @@ docs/RELEASE_DEVICE_CHECK_v2.md
 
 台帳とGitHub Pages自動公開処理は作成済みだが、Pagesの公開元設定、ブラウザ操作、実機確認、GitHub Pages反映確認は未実施である。
 
-過去に接続確認済み（現在はSupabase登録削除・ゲート停止）:
+2026年8月1日に再接続確認済み:
 
 - 実験場カード
 - 詳細ランキング表示
@@ -726,7 +726,7 @@ docs/RELEASE_DEVICE_CHECK_v2.md
 現在も自動確認する項目:
 
 - Chromium・WebKitによるiPhone SE相当E2E
-- 高速連続タップ、ランキング通信0件、練習準備中止、fallback
+- 高速連続タップ、公式1プレイ1送信、練習の送信0件、練習準備中止、fallback
 
 公開後の人間確認待ち:
 
@@ -737,20 +737,20 @@ docs/RELEASE_DEVICE_CHECK_v2.md
 - 低速回線
 - 一時オフラインと次回練習の再試行
 - 共有キャンセル
-- ランキング再開時のSupabase再登録と実送信
+- 公式ランキングの実送信と詳細ランキング表示
 
 ## 9. 完成条件
 
 - 現行ゲームと文書が一致
 - 公式と練習が分離
 - 補正タイムの小さい順
-- テスト中はランキング通信0件
-- 再開時は公式1プレイ1送信
+- 公式は1プレイ1送信
+- 練習は送信0件
 - CI成功
 - 主保証端末で操作不能なし
-- 実験場へ接続し、停止中の詳細ランキング導線を隠す
+- 実験場へ接続し、詳細ランキング導線を表示する
 - 可変サイズ契約が人間承認済み
 - 候補バンクが独立検証済み
 - 練習モード切替が人間承認済み
 
-現時点では、84問完成バンク、ランダム練習先行接続、公式隔離、fallback、描写・高速入力・準備競合の補修、GitHub Pages自動公開処理まで実装済みです。残工程はPagesの公開元設定、GitHub Actionsの継続成功、GitHub Pages反映後の実機確認、Supabaseを再登録する時点でのランキング再開監査です。
+現時点では、84問完成バンク、ランダム練習先行接続、公式隔離、fallback、描写・高速入力・準備競合の補修、Supabase再登録・実疎通、ランキング再開設定、GitHub Pages自動公開処理まで実装済みです。残工程はPagesの公開元設定、GitHub Actionsの継続成功、GitHub Pages反映後の実機確認です。
