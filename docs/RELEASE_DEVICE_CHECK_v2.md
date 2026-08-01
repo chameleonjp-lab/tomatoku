@@ -3,7 +3,7 @@
 - 文書種別: 公開候補版の手動確認記録
 - 対象: `chameleonjp-lab/tomatooku`
 - 作成日: 2026-07-21
-- 状態: **prepared / test ranking disabled / repository setting and human execution pending**
+- 状態: **prepared / ranking restored / repository setting and human execution pending**
 - 標準公開先: `https://chameleonjp-lab.github.io/tomatooku/`
 
 > この台帳を追加したPRでは、ブラウザ操作、実機試験、GitHub Pages公開操作を実施しない。チェック欄は人間が同一公開候補版を確認した時だけ更新し、台帳を用意したことを合格扱いしない。
@@ -30,8 +30,8 @@
 | 練習primary bank | `candidate-v2-variable-4-6-final` |
 | 練習fallback bank | `legacy-v1` |
 | 練習feature gate | `enabled`を想定。実値を記録 |
-| ランキング取得ゲート | `rankingsEnabled=false`。再開前に別候補版で再確認 |
-| 公式ランキング送信ゲート | `submissionsEnabled=false`。再開前に別候補版で再確認 |
+| ランキング取得ゲート | `rankingsEnabled=true`。実値を記録 |
+| 公式ランキング送信ゲート | `submissionsEnabled=true`。実値を記録 |
 | 確認者 | 未記入 |
 
 記録へsecret key、service role key、アクセストークン、個人のメールアドレスや電話番号を貼らない。ランキング実送信に使う表示名は、本名を避け、確認用であることを識別できる名前にする。
@@ -62,22 +62,23 @@ iPhone SE相当Chromium / WebKit E2EはGitHub Actionsの自動検証であり、
 - [ ] GitHub Pagesが候補版の内容を返し、真っ白な画面や意図しない再読み込みがない。
 - [ ] ホームが横スクロールせず、タイトル、説明、公式3問、ランダム練習の開始操作が欠けない。
 - [ ] 実験場リンクが正しい遷移先を開く。
-- [ ] ランキング停止中は詳細ランキングリンクとランキング一覧を表示しない。
+- [ ] 詳細ランキングリンクとランキング一覧を表示し、0件・通信失敗を別の文言で示す。
 - [ ] モーダルを閉じた後に操作へ戻れ、フォーカスや入力が失われない。
 
 証跡・備考: 未記入
 
-## 6. 公式3問とランキング停止
+## 6. 公式3問とランキング
 
 - [ ] 公式は`T001 → T011 → T021`の順で、各プレイ3ステージだけ出題される。
 - [ ] 結果の補正タイムが`実時間 + 誤タップ×3秒 + ヒント×30秒`の内訳と一致する。
-- [ ] 公式完了時に「テスト中のため記録は保存されない」と表示する。
-- [ ] 公式・練習・ホーム表示のいずれでもランキングRPC通信が0件である。
-- [ ] ランキング停止中も結果画面と計測内訳が失われない。
+- [ ] 公式完了時にランキング送信中から、登録成功または送信失敗へ表示が変わる。
+- [ ] 同じ公式play IDでは送信RPCが1件だけで、再描画や連打による二重送信がない。
+- [ ] ホームと結果画面でベストランキングを読み込める。
+- [ ] 通信失敗時も結果画面と計測内訳が失われず、再ゲームとホーム操作を続けられる。
 
 開発者ツールまたは自動試験で確認した通信件数、証跡: 未記入
 
-Supabase再登録とランキング実送信は別の公開候補版で行う。応答喪失後の単純な再送は行わない。現行RPCはplay IDを受け取らず、プレイ回数が重複する可能性があるため、安全な再送契約は別work packageの人間判断事項とする。
+Supabase再登録と公開用キー経由の実疎通は2026年8月1日に完了した。応答喪失後の単純な再送は行わない。現行RPCはplay IDを受け取らず、プレイ回数が重複する可能性があるため、安全な再送契約は別work packageの人間判断事項とする。
 
 ## 7. ランダム練習84問とfallback
 
@@ -133,13 +134,13 @@ WebGL / WebGPU描画機能消失試験: `対象外`。本作はHTML/CSSの盤面
 - 意図しない再読み込み、ブラウザ終了、復帰しない白画面
 - 入力不能、時間の逆行・二重加算・暴走
 - 公式結果、保存対象データの消失
-- ランキング停止中のRPC通信または詳細ランキング表示
+- 公式1プレイでの二重送信、ランキング取得失敗によるゲーム操作不能
 - 練習結果のランキング送信、公式への84問bank混入
 - fallback不能、または再接続後も一時fallbackへ固定される状態
 - 周回ごとに増え続ける画面部品、イベント、通信、ゲーム状態
 - 保証環境で主要操作や説明が欠ける状態
 
-練習bankの問題なら、別PRで`PRACTICE_STAGE_BANK_FEATURE.enabled=false`へ戻せる。ランキングは`rankingsEnabled=false`と`submissionsEnabled=false`を維持する。再開も停止も`main`へ直接変更せず、Draft PRとCIを通す。
+練習bankの問題なら、別PRで`PRACTICE_STAGE_BANK_FEATURE.enabled=false`へ戻せる。ランキング障害時は`submissionsEnabled=false`で送信を先に止め、必要な場合だけ`rankingsEnabled=false`で取得も止める。停止も再開も`main`へ直接変更せず、Draft PRとCIを通す。
 
 ## 12. 最終判定
 

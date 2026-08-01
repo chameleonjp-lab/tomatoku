@@ -6,8 +6,8 @@
 - 公開名・リポジトリ名: `tomatooku`
 - 標準公開先: `https://chameleonjp-lab.github.io/tomatooku/`
 - 基準ブランチ: `main`
-- 更新日: 2026-07-28
-- 現在状態: ランダム練習84問接続済み／描写・高速入力・取得競合の補修実装済み／Supabase関連情報削除済み／ランキング取得・送信停止中／GitHub Pages公開元設定・公開後実機確認待ち
+- 更新日: 2026-08-01
+- 現在状態: ランダム練習84問接続済み／描写・高速入力・取得競合の補修実装済み／Supabase再登録・ランキング取得・送信再開／GitHub Pages公開元設定・公開後実機確認待ち
 
 ## 1. ゲーム概要
 
@@ -36,7 +36,7 @@ T011
 T021
 ```
 
-順序も固定し、全プレイヤーが同じ条件で遊ぶ。ランキング再開後に対象となる唯一のモードだが、テスト中は結果を送信しない。
+順序も固定し、全プレイヤーが同じ条件で遊ぶ。ランキング対象となる唯一のモードで、完了時に結果を1回送信する。
 
 起動時またはテストで次を検証する。
 
@@ -228,7 +228,7 @@ POST /rest/v1/rpc/submit_score
   "p_display_name": "表示名",
   "p_game_slug": "tomatoku",
   "p_score": 4835,
-  "p_client_version": "tomatooku-web-2.3.0-test-ranking-off"
+  "p_client_version": "tomatooku-web-2.4.0-ranking-restored-v1"
 }
 ```
 
@@ -263,16 +263,16 @@ updated_at
 
 ## 10. 送信ゲート
 
-過去の疎通記録は残すが、2026年7月27日にテスト段階へ戻すためSupabaseの`tomatoku`関連情報を削除した。現行設定は次のとおり。
+2026年8月1日に`public.games`へ`tomatoku`を再登録し、Publishable keyで取得、2回送信、初回、ベスト、集計を確認した。確認用データを削除した後の現行設定は次のとおり。
 
 ```js
-rankingsEnabled: false
-submissionsEnabled: false
+rankingsEnabled: true
+submissionsEnabled: true
 ```
 
-停止中はランキングRPCを呼ばず、詳細ランキング導線も表示しない。公式・練習とも結果をサーバーへ保存しない。
+ホームと結果画面でベストランキングを取得し、詳細ランキング導線を表示する。公式3問の完了時だけ送信し、練習は送信しない。
 
-再開時は`public.games`再登録、権限、取得、公式1プレイ1送信の実疎通を行い、`rankingsEnabled`を先に、`submissionsEnabled`を最後に有効化する。
+障害時は`submissionsEnabled`を先に無効化して新規送信を止める。原因が取得側にもある場合は`rankingsEnabled`も無効化する。
 
 ## 11. 通信状態
 
@@ -289,7 +289,7 @@ skipped
 - `empty`: 取得成功・0件
 - `error`: HTTP、タイムアウト、JSON、返却形式不正
 - `not_configured`: URLまたはPublishable key不足
-- `disabled`: テスト中のためランキング取得を明示停止
+- `disabled`: 設定によりランキング取得を明示停止
 - `skipped`: 練習または送信ゲートOFF
 
 タイムアウトは`AbortController`で実通信を中止する。

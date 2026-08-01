@@ -12,7 +12,7 @@ const plan = read("docs/IMPLEMENTATION_PLAN_v2.md");
 
 assert.match(
   checklist,
-  /prepared \/ test ranking disabled \/ repository setting and human execution pending/
+  /prepared \/ ranking restored \/ repository setting and human execution pending/
 );
 assert.match(checklist, /同じ公開候補版で3回連続/);
 assert.match(checklist, /iPhone 17 Pro \/ Safari/);
@@ -24,8 +24,9 @@ assert.match(checklist, /バックグラウンド移動と復帰を10回/);
 assert.match(checklist, /低速、切断、再接続、送信失敗/);
 assert.ok(checklist.includes("candidate-v2-variable-4-6-final"));
 assert.ok(checklist.includes("legacy-v1"));
-assert.ok(checklist.includes("submissionsEnabled=false"));
-assert.ok(checklist.includes("rankingsEnabled=false"));
+assert.ok(checklist.includes("submissionsEnabled=true"));
+assert.ok(checklist.includes("rankingsEnabled=true"));
+assert.match(checklist, /公式1プレイでの二重送信/);
 assert.ok(checklist.includes("PRACTICE_STAGE_BANK_FEATURE.enabled=false"));
 assert.match(checklist, /WebGL \/ WebGPU描画機能消失試験: `対象外`/);
 assert.match(
