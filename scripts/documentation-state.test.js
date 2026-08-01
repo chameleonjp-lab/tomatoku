@@ -29,10 +29,14 @@ assert.ok(spec.includes(RANKING_CONFIG.clientVersion));
 assert.ok(spec.includes(PRACTICE_STAGE_BANK_FEATURE.primaryBankId));
 assert.ok(spec.includes(PRACTICE_STAGE_BANK_FEATURE.fallbackBankId));
 assert.doesNotMatch(spec, /public\.games.*未完了/);
+assert.match(spec, /旧版の実プレイ1件/);
+assert.match(spec, /決定前は公開しない/);
 
 assert.match(requirements, /文書種別: 現行製品要件/);
-assert.match(requirements, /T001 \/ T011 \/ T021/);
-assert.match(requirements, /ランキング取得・送信再開/);
+assert.match(requirements, /公式と練習が同じ承認済み問題バンク/);
+assert.match(requirements, /公式は難易度別に3問をランダム選出/);
+assert.match(requirements, /公式の読込失敗時は別問題へ切り替えず開始を止める/);
+assert.match(requirements, /ランキング取得・公式送信再開/);
 assert.match(requirements, /チュートリアル.*0\.5倍速/);
 assert.ok(requirements.includes(PRACTICE_STAGE_BANK_FEATURE.primaryBankId));
 assert.ok(requirements.includes(PRACTICE_STAGE_BANK_FEATURE.fallbackBankId));
@@ -42,7 +46,10 @@ assert.doesNotMatch(
 );
 
 assert.ok(plan.includes(ACTIVE_PRACTICE_STAGE_BANK_ID));
-assert.match(plan, /ランダム練習primary:.*84問/);
+assert.match(plan, /ランダム練習primary: 公式と同じ完成バンク/);
+assert.match(plan, /公式primary:.*難易度1→2→3をランダム選出/);
+assert.match(plan, /active-official-and-practice/);
+assert.match(plan, /tomatooku-web-2\.6\.0-random-official-v1/);
 assert.match(plan, /REVIEW EXECUTION COMPLETED/);
 assert.match(plan, /rankingsEnabled=true/);
 assert.match(plan, /submissionsEnabled=true/);
@@ -53,6 +60,21 @@ assert.match(plan, /repository setting pending/);
 assert.doesNotMatch(plan, /ランダム練習: 現行30問から3問選出/);
 assert.doesNotMatch(plan, /現在はSupabase登録削除・ゲート停止/);
 assert.doesNotMatch(plan, /Supabaseを再登録する時点/);
+
+const finalBankDoc = read("docs/VARIABLE_STAGE_FINAL_BANK.md");
+const releaseCheck = read("docs/RELEASE_DEVICE_CHECK_v2.md");
+const historicalPracticeRollout = read("docs/PRACTICE_STAGE_BANK_ROLLOUT.md");
+assert.match(finalBankDoc, /ACTIVE_STAGE_BANK_ID = candidate-v2-variable-4-6-final/);
+assert.match(finalBankDoc, /final\.rankingEligible = true/);
+assert.match(finalBankDoc, /公式は開始を止める/);
+assert.match(releaseCheck, /公式bank \| `candidate-v2-variable-4-6-final`/);
+assert.match(releaseCheck, /公式への`legacy-v1` fallback混入/);
+assert.match(historicalPracticeRollout, /現在の実装契約ではない/);
+
+const publicHtml = read("index.html");
+assert.doesNotMatch(publicHtml, /84問/);
+assert.doesNotMatch(publicHtml, /固定3問|全員同じ3問/);
+assert.match(publicHtml, /問題はランダムに選ばれます/);
 
 assert.match(supabaseSetup, /public\.games`登録: \*\*登録済み・is_active=true\*\*/);
 assert.match(supabaseSetup, /実スコア送信: \*\*Publishable keyで確認済み\*\*/);

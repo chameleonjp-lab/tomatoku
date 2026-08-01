@@ -3,8 +3,8 @@
 - 文書種別: 現行実装・残工程計画
 - 対象: `chameleonjp-lab/tomatooku`
 - 基準ブランチ: `main`
-- 更新日: 2026-08-01
-- 現在状態: 84問完成バンク・練習接続済み／描写・高速入力・取得競合の補修実装済み／Supabase再登録・ランキング取得・送信再開／GitHub Pages自動公開はリポジトリ設定待ち／公開後実機確認待ち
+- 更新日: 2026-08-02
+- 現在状態: 完成バンクを公式・練習の共通ランダム出題へ接続済み／Supabaseランキング取得・公式送信再開／GitHub Pages自動公開はリポジトリ設定待ち／公開後実機確認待ち
 
 ## 1. 運用ルール
 
@@ -12,7 +12,7 @@
 - 1 work package = 1 Pull Request
 - 実装、テスト、文書更新を同じPRで完結させる
 - CI失敗中に別PRへ逃げない
-- 公式3問、ランキング、Supabaseを生成器作業へ混在させない
+- ランキングとSupabaseを生成器作業へ混在させない
 - Draft解除、マージ、候補バンク有効化は明示的な人間判断を必要とする
 - 現行30問とロールバック可能性を維持する
 - 成立性確認と仕様採用を分離する
@@ -23,17 +23,18 @@
 
 - 5×5盤面
 - 5エリア
-- 公式3問と練習fallbackの`legacy-v1`は各エリア5マス
-- 練習primaryの84問完成バンクは各エリア4〜6マス
+- 公式・練習primaryの完成バンクは各エリア4〜6マス
+- 練習fallbackの`legacy-v1`は各エリア5マス
 - 各行・各列・各エリアに🍅1個
 - 🍅同士は上下左右・斜めで隣接禁止
 - 1プレイ3ステージ
 
 ### モード
 
-- 公式3問: `legacy-v1`の`T001 / T011 / T021`
-- ランダム練習primary: `candidate-v2-variable-4-6-final`の84問から難易度1→2→3
+- 公式primary: `candidate-v2-variable-4-6-final`から難易度1→2→3をランダム選出
+- ランダム練習primary: 公式と同じ完成バンクから難易度1→2→3をランダム選出
 - ランダム練習fallback: `legacy-v1`の既存30問
+- 公式はprimary読込失敗時にfallbackせず開始を止める
 - 練習結果はランキング未送信
 
 ### 補正タイム
@@ -84,12 +85,12 @@
 - 古い非同期処理の無効化
 - ステージ別時間
 
-### 3-4. 公式3問・練習・補正タイム
+### 3-4. 公式・練習・補正タイム
 
 状態: **completed**
 
 - 公式と練習の分離
-- 公式問題固定
+- 公式・練習共通バンクからの難易度別ランダム選出
 - 練習問題の重複防止
 - 補正タイムと内訳
 - 公式のみランキング送信
@@ -116,6 +117,18 @@
 - テストデータ削除
 - 削除後に`score_runs=0`、`game_scores=0`、確認用player=0を確認
 - 現在は`rankingsEnabled=true`、`submissionsEnabled=true`
+
+### 3-13. 公式ランダム出題
+
+状態: **implemented / automated verification pending**
+
+- 公式と練習のprimaryを同じ完成バンクへ統一
+- 両モードで難易度1→2→3の3問をランダム選出
+- 公式の読込失敗時は別問題へ切り替えず開始停止
+- 練習だけ旧30問fallbackと次回再取得を維持
+- 利用者向け画面から問題バンクの総数と固定出題の説明を削除
+- ランキング送信は公式1プレイ1回、練習0回を維持
+- client versionを`tomatooku-web-2.6.0-random-official-v1`へ更新
 
 ### 3-7. CI
 
@@ -376,7 +389,7 @@ scripts/variable-stage-review-round1.test.js
 
 ### 4-9. Slice 9：84問完成バンク
 
-状態: **completed / ACTIVE FOR PRACTICE ONLY**
+状態: **completed / 2026-08-02から公式・練習共通**
 
 実装:
 
@@ -386,8 +399,8 @@ scripts/variable-stage-review-round1.test.js
 - 分布fixture固定
 - 距離1例外9組を固定
 - 決定論的再生成
-- runtimeは練習専用で有効
-- rankingは無効
+- runtimeは公式・練習で有効
+- rankingは公式モードで有効
 
 固定成果物:
 
@@ -399,9 +412,9 @@ scripts/variable-stage-final-bank.test.js
 docs/VARIABLE_STAGE_FINAL_BANK.md
 ```
 
-### 4-10. Slice 10：ランダム練習先行接続
+### 4-10. Slice 10：ランダム練習先行接続（履歴）
 
-状態: **implemented / RELEASE DEVICE CHECK PENDING**
+状態: **superseded by 3-13 / 当時の履歴**
 
 実装:
 
@@ -430,11 +443,11 @@ docs/PRACTICE_STAGE_BANK_ROLLOUT.md
 ## 5. 現在のバンク契約
 
 ```text
-ACTIVE_STAGE_BANK_ID = legacy-v1
+ACTIVE_STAGE_BANK_ID = candidate-v2-variable-4-6-final
 
 legacy-v1.status = active
 legacy-v1.runtimeEnabled = true
-legacy-v1.rankingEligible = true
+legacy-v1.rankingEligible = false
 
 candidate-v2.status = blocked-by-constraints
 candidate-v2.runtimeEnabled = false
@@ -448,25 +461,24 @@ candidate-v2-variable-4-6-pool.status = candidate-pool-ready-for-review
 candidate-v2-variable-4-6-pool.runtimeEnabled = false
 candidate-v2-variable-4-6-pool.rankingEligible = false
 
-candidate-v2-variable-4-6-final.status = active-practice-only
+candidate-v2-variable-4-6-final.status = active-official-and-practice
 candidate-v2-variable-4-6-final.runtimeEnabled = true
-candidate-v2-variable-4-6-final.rankingEligible = false
+candidate-v2-variable-4-6-final.rankingEligible = true
 
 ACTIVE_PRACTICE_STAGE_BANK_ID = candidate-v2-variable-4-6-final
 PRACTICE_STAGE_BANK_FEATURE.fallbackBankId = legacy-v1
 ```
 
-生成器作業によって次を変更してはいけない。
+生成器作業だけを理由に次を変更してはいけない。
 
 - `src/stages.js`
-- 公式`T001 / T011 / T021`
-- ランダム練習の選出元
+- 公式・練習の選出元
 - 本番ランキング
 - Supabaseデータ
 
 ## 6. 現在の人間判断ゲート
 
-ランダム練習接続は実装済み。マージ・公開後の実機確認が完了するまで、feature gateと旧30問fallbackを維持する。
+公式・練習の共通ランダム出題は実装済み。マージ・公開後の実機確認が完了するまで、feature gateと練習用の旧30問fallbackを維持する。
 
 ### 決定1：可変サイズ契約の採用（resolved）
 
@@ -488,11 +500,11 @@ PRACTICE_STAGE_BANK_FEATURE.fallbackBankId = legacy-v1
 
 ### 決定2：適用範囲
 
-推奨:
+2026年8月2日に次の内容へ更新:
 
-- ランダム練習のみ先行採用
-- 公式3問は変更しない
-- ランキング契約は変更しない
+- 公式と練習へ共通採用
+- 公式はランダム選出し、ランキング対象を維持
+- 練習はランキング対象外を維持
 
 ### 決定3：108問候補プールの完成バンク選別（resolved）
 
@@ -500,11 +512,11 @@ PR #18で採用84問・除外24問を承認済み。
 
 ### 決定4：ランダム練習への接続（resolved）
 
-採用内容:
+当時の採用内容。2026年8月2日に3-13で更新済み:
 
-- 公式3問は現行のまま
-- ランダム練習だけ84問完成バンクへ切替
-- 完成バンクはランキング対象外
+- 当時は公式固定・練習だけ完成バンクだった
+- 現在は公式と練習が完成バンクを共有する
+- 現在は公式だけランキング対象
 - 読込失敗時は旧`legacy-v1`へ安全に戻す
 - 即時ロールバック可能なfeature gateを使用
 
@@ -577,17 +589,17 @@ review/variable-stage-review.html
 - 未判断を自動採用しない
 - 採用84問未満なら生成・選別条件を再検討
 - 完成バンクを独立validatorへ再投入
-- 完成バンクのruntimeはランダム練習だけで有効
-- rankingは引き続き無効
+- 完成バンクのruntimeは公式・練習で有効
+- rankingは公式モードで有効
 - `generated/variable-stage-bank-v2.json`へ固定済み
 
-### 7-6. 練習モード先行切替（implemented / device check pending）
+### 7-6. 練習モード先行切替（履歴 / 3-13で更新済み）
 
 実装済み:
 
 - 可変サイズvalidatorを練習loaderへ接続
 - 練習用バンクを84問へ切替
-- 公式3問は維持
+- 当時は公式固定を維持。現在は公式も共通バンクからランダム選出
 - ランキングは維持
 - feature gateで即時ロールバック可能
 - 読込失敗時は旧30問へ自動fallback
@@ -623,8 +635,8 @@ scripts/release-device-check.test.js
 
 - `scripts/launch.js`の既定Chromium契約を維持
 - `PW_BROWSER=webkit`指定時だけPlaywright WebKitを起動
-- 公開ゲームの公式3問・ランキングmock・基本UIをChromiumとWebKitで検証
-- 練習84問、公式隔離、fallbackをChromiumとWebKitで検証
+- 公開ゲームの公式ランダム3問・ランキングmock・基本UIをChromiumとWebKitで検証
+- 公式・練習共通バンク、公式開始停止、練習fallbackをChromiumとWebKitで検証
 - 未対応ブラウザ名を暗黙fallbackせず明示的に拒否
 - WebKit自動検証はSafari系差異の早期検出であり、iPhone・iPad実機確認の代用にはしない
 
@@ -669,7 +681,7 @@ scripts/e2e.test.js
 - 公開物から文書、テスト、レビュー画面、設定資料を除外
 - HTML、CSS、JavaScriptのローカル参照切れを送信前に拒否
 - GitHub Pagesのリポジトリパスを外れる`/`始まりの参照を拒否
-- 84問バンクがruntime有効・ranking無効であることを検査
+- 完成バンクがruntime有効・公式ranking対象であることを検査
 - `actions/upload-pages-artifact`で検査済み公開物だけを登録
 - `actions/deploy-pages`で`github-pages`環境へ公開
 - 外部アクセストークン、Repository Secrets、公開専用ブランチを使わない
@@ -731,7 +743,7 @@ docs/RELEASE_DEVICE_CHECK_v2.md
 公開後の人間確認待ち:
 
 - GitHub Pagesへの最新`main`反映
-- iPhone 17 Proの表示・高速入力・練習84問
+- iPhone 17 Proの表示・高速入力・公式と練習のランダム出題
 - iPhone 11 Pro
 - iPad Pro縦横
 - 低速回線
@@ -742,7 +754,7 @@ docs/RELEASE_DEVICE_CHECK_v2.md
 ## 9. 完成条件
 
 - 現行ゲームと文書が一致
-- 公式と練習が分離
+- 公式と練習が同じprimary問題バンクを使い、ランキング送信だけ分離
 - 補正タイムの小さい順
 - 公式は1プレイ1送信
 - 練習は送信0件
@@ -751,6 +763,6 @@ docs/RELEASE_DEVICE_CHECK_v2.md
 - 実験場へ接続し、詳細ランキング導線を表示する
 - 可変サイズ契約が人間承認済み
 - 候補バンクが独立検証済み
-- 練習モード切替が人間承認済み
+- 公式・練習の共通ランダム出題が人間承認済み
 
-現時点では、84問完成バンク、ランダム練習先行接続、公式隔離、fallback、描写・高速入力・準備競合の補修、Supabase再登録・実疎通、ランキング再開設定、GitHub Pages自動公開処理まで実装済みです。残工程はPagesの公開元設定、GitHub Actionsの継続成功、GitHub Pages反映後の実機確認です。
+現時点では、完成バンクの公式・練習共通接続、公式ランダム出題、練習fallback、描写・高速入力・準備競合の補修、Supabase再登録・実疎通、ランキング再開設定、GitHub Pages自動公開処理まで実装済みです。残工程はPagesの公開元設定、GitHub Actionsの継続成功、GitHub Pages反映後の実機確認です。

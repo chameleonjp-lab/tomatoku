@@ -1,23 +1,33 @@
 import assert from "node:assert/strict";
+import fs from "node:fs";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
 import {
   ADJUSTED_TIME,
   GAME_MODE,
   GameSession,
   N,
-  OFFICIAL_STAGE_IDS,
   SESSION_STATUS,
   StageState,
-  buildPracticeStageSets,
+  buildRandomStageSets,
   computeAdjustedTime,
   formatAdjustedTime,
   formatCentiseconds,
   formatTime,
   pickStages,
-  selectOfficialStages,
   selectPracticeStages,
+  selectRandomStages,
   solutionSignature,
 } from "../src/game.js";
 import { STAGES } from "../src/stages.js";
+
+const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
+const finalBank = JSON.parse(
+  fs.readFileSync(
+    path.join(ROOT, "generated/variable-stage-bank-v2.json"),
+    "utf8"
+  )
+);
 
 let pass = 0;
 function test(name, fn) {
@@ -49,23 +59,8 @@ test("ステージバンクは30問以上・各難易度あり", () => {
   }
 });
 
-test("公式ステージIDはT001→T011→T021で固定", () => {
-  assert.deepEqual(OFFICIAL_STAGE_IDS, ["T001", "T011", "T021"]);
-  const stages = selectOfficialStages();
-  assert.deepEqual(stages.map((stage) => stage.id), OFFICIAL_STAGE_IDS);
-  assert.deepEqual(stages.map((stage) => stage.difficulty), [1, 2, 3]);
-  assert.equal(new Set(stages.map(solutionSignature)).size, 3);
-});
-
-test("公式設定の欠損・難易度順違反・正解重複を拒否", () => {
-  assert.throws(() => selectOfficialStages(["T001", "T011"]));
-  assert.throws(() => selectOfficialStages(["T001", "T999", "T021"]));
-  assert.throws(() => selectOfficialStages(["T011", "T001", "T021"]));
-  assert.throws(() => selectOfficialStages(["T001", "T011", "T022"]));
-});
-
-test("練習用の有効3問組を事前列挙できる", () => {
-  const sets = buildPracticeStageSets();
+test("公式・練習共通の有効3問組を事前列挙できる", () => {
+  const sets = buildRandomStageSets();
   assert.ok(sets.length > 0);
   for (const stages of sets) {
     assert.deepEqual(stages.map((stage) => stage.difficulty), [1, 2, 3]);
@@ -74,9 +69,33 @@ test("練習用の有効3問組を事前列挙できる", () => {
   }
 });
 
-test("練習選出500回でID・正解配置が重複しない", () => {
+test("完成バンクの全問題が複数のランダム3問組へ到達可能", () => {
+  const sets = buildRandomStageSets(finalBank.stages);
+  const reachableIds = new Set(sets.flatMap((stages) => stages.map((stage) => stage.id)));
+  assert.ok(sets.length > finalBank.stageCount);
+  assert.equal(reachableIds.size, finalBank.stageCount);
+  assert.deepEqual(
+    [1, 2, 3].map(
+      (difficulty) =>
+        new Set(
+          sets
+            .flat()
+            .filter((stage) => stage.difficulty === difficulty)
+            .map((stage) => stage.id)
+        ).size
+    ),
+    [28, 28, 28]
+  );
+});
+
+test("不正な問題バンクからはランダム3問を作らない", () => {
+  assert.throws(() => buildRandomStageSets(null), TypeError);
+  assert.throws(() => buildRandomStageSets([]), /有効なランダムステージ組/);
+});
+
+test("ランダム選出500回でID・正解配置が重複しない", () => {
   for (let seed = 1; seed <= 500; seed++) {
-    const stages = selectPracticeStages(seededRand(seed));
+    const stages = selectRandomStages(seededRand(seed));
     assert.equal(stages.length, 3);
     assert.equal(new Set(stages.map((stage) => stage.id)).size, 3);
     assert.equal(new Set(stages.map(solutionSignature)).size, 3);
@@ -85,8 +104,12 @@ test("練習選出500回でID・正解配置が重複しない", () => {
 
 test("pickStagesは練習選出の互換API", () => {
   const a = pickStages(() => 0);
-  const b = selectPracticeStages(() => 0);
+  const b = selectRandomStages(() => 0);
   assert.deepEqual(a.map((stage) => stage.id), b.map((stage) => stage.id));
+  assert.deepEqual(
+    selectPracticeStages(() => 0).map((stage) => stage.id),
+    b.map((stage) => stage.id)
+  );
 });
 
 test("全ステージは正解順タップでクリア", () => {
@@ -166,13 +189,44 @@ test("3分を超える補正タイムも上限で切らない", () => {
   assert.equal(formatCentiseconds(score), "184.00");
 });
 
-test("公式セッションは固定3問", () => {
-  const session = new GameSession("A", seededRand(1), {
-    mode: GAME_MODE.OFFICIAL,
-    playId: "official-1",
-  });
-  assert.equal(session.mode, GAME_MODE.OFFICIAL);
-  assert.deepEqual(session.stages.map((stage) => stage.id), OFFICIAL_STAGE_IDS);
+test("公式セッションは難易度別の3問をランダム選出", () => {
+  const combinations = new Set();
+  for (let seed = 1; seed <= 100; seed++) {
+    const session = new GameSession("A", seededRand(seed), {
+      mode: GAME_MODE.OFFICIAL,
+      playId: `official-${seed}`,
+      stageBank: finalBank.stages,
+      stageBankId: finalBank.id,
+      stageBankFallback: false,
+    });
+    assert.equal(session.mode, GAME_MODE.OFFICIAL);
+    assert.deepEqual(session.stages.map((stage) => stage.difficulty), [1, 2, 3]);
+    assert.equal(new Set(session.stages.map((stage) => stage.id)).size, 3);
+    combinations.add(session.stages.map((stage) => stage.id).join(","));
+  }
+  assert.ok(combinations.size > 1);
+});
+
+test("公式セッションは未指定・fallbackの問題バンクを拒否", () => {
+  assert.throws(
+    () =>
+      new GameSession("A", seededRand(1), {
+        mode: GAME_MODE.OFFICIAL,
+        playId: "official-missing-bank",
+      }),
+    /承認済み/
+  );
+  assert.throws(
+    () =>
+      new GameSession("A", seededRand(1), {
+        mode: GAME_MODE.OFFICIAL,
+        playId: "official-fallback-bank",
+        stageBank: finalBank.stages,
+        stageBankId: finalBank.id,
+        stageBankFallback: true,
+      }),
+    /承認済み/
+  );
 });
 
 test("練習セッションは練習モード", () => {

@@ -13,7 +13,7 @@ assert.equal(RANKING_CONFIG.rankingsEnabled, true);
 assert.equal(RANKING_CONFIG.submissionsEnabled, true);
 assert.equal(
   RANKING_CONFIG.clientVersion,
-  "tomatooku-web-2.4.0-ranking-restored-v1"
+  "tomatooku-web-2.6.0-random-official-v1"
 );
 assert.equal(RANKING_CONFIG.submitRpc, "submit_score");
 assert.equal(RANKING_CONFIG.bestRankingRpc, "get_best_score_ranking");

@@ -92,12 +92,12 @@ test("現行30問も同じcanonical 5型へ集約", () => {
   assert.deepEqual([...counts.values()].sort((left, right) => right - left), [8, 7, 6, 6, 3]);
 });
 
-test("現行バンクだけが有効でcandidate-v2はBLOCKED", () => {
-  const legacy = getStageBankDescriptor();
+test("完成バンクが現行でcandidate-v2はBLOCKED", () => {
+  const legacy = getStageBankDescriptor("legacy-v1");
   const candidate = STAGE_BANK_CATALOG["candidate-v2"];
-  assert.equal(ACTIVE_STAGE_BANK_ID, "legacy-v1");
+  assert.equal(ACTIVE_STAGE_BANK_ID, "candidate-v2-variable-4-6-final");
   assert.equal(legacy.runtimeEnabled, true);
-  assert.equal(legacy.rankingEligible, true);
+  assert.equal(legacy.rankingEligible, false);
   assert.equal(candidate.runtimeEnabled, false);
   assert.equal(candidate.rankingEligible, false);
   assert.equal(candidate.status, "blocked-by-constraints");

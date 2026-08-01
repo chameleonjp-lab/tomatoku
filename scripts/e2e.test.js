@@ -1,6 +1,6 @@
 /**
  * トマトオク ブラウザE2E（Playwright）
- * iPhone SE相当で公式3問、補正タイム、ランキング送信、
+ * iPhone SE相当で公式ランダム3問、補正タイム、ランキング送信、
  * モーダルフォーカス、ルール理由表示、練習モードを確認する。
  */
 import http from "http";
@@ -13,7 +13,6 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(__dirname, "..");
 const PORT = 8099;
 const N = 5;
-const OFFICIAL_IDS = ["T001", "T011", "T021"];
 
 const MIME = {
   ".html": "text/html",
@@ -134,13 +133,6 @@ async function waitForPlaying(page) {
   );
 }
 
-function assertOfficialIds(ids) {
-  ok(
-    JSON.stringify(ids) === JSON.stringify(OFFICIAL_IDS),
-    `公式ID順序 ${JSON.stringify(ids)}`
-  );
-}
-
 async function main() {
   const server = await startServer();
   const browser = await launchBrowser();
@@ -191,6 +183,10 @@ async function main() {
   ok(await page.isVisible("#screen-home"), "ホーム表示");
   ok(await page.isVisible("#start-official-btn"), "公式開始ボタン");
   ok(await page.isVisible("#start-practice-btn"), "練習開始ボタン");
+  ok(
+    await page.evaluate(() => !document.body.innerText.includes("84")),
+    "利用者向け画面に問題群の総数を表示しない"
+  );
   ok(
     (await page.textContent("#name-privacy")).includes("本名"),
     "個人情報を入力しない注意"
@@ -370,6 +366,32 @@ async function main() {
   );
 
   await page.fill("#player-name", "テスター");
+
+  let releasePracticeBank;
+  await page.route("**/generated/variable-stage-bank-v2.json", async (route) => {
+    await new Promise((resolve) => {
+      releasePracticeBank = resolve;
+    });
+    await route.continue();
+  });
+  await page.click("#start-practice-btn");
+  await page.waitForSelector("#start-preparing:not([hidden])");
+  ok(
+    await page.$eval("#howto-btn", (element) => element.disabled),
+    "練習準備中は別操作を無効化"
+  );
+  for (let attempt = 0; attempt < 100 && !releasePracticeBank; attempt++) {
+    await page.waitForTimeout(10);
+  }
+  ok(typeof releasePracticeBank === "function", "練習bank取得を遅延できる");
+  await page.click("#cancel-start-btn");
+  releasePracticeBank();
+  await page.waitForFunction(() => document.querySelector("#start-preparing")?.hidden);
+  await page.waitForTimeout(150);
+  ok(await page.isVisible("#screen-home"), "練習準備を中止してホームを維持");
+  ok(!(await page.isVisible("#screen-countdown")), "中止した古い要求は開始しない");
+  await page.unroute("**/generated/variable-stage-bank-v2.json");
+
   await page.click("#start-official-btn");
   await page.waitForSelector("#screen-countdown.active");
   ok((await page.textContent("#countdown-value")).trim() === "3", "3から開始");
@@ -436,31 +458,45 @@ async function main() {
   await clickCell(page, 0, firstSolution[0]);
 
   const ids = [];
+  const difficulties = [];
   for (let stageIndex = 0; stageIndex < 3; stageIndex++) {
     ids.push(await page.getAttribute("#board", "data-stage-id"));
+    difficulties.push(
+      Number(await page.getAttribute("#board", "data-difficulty"))
+    );
     ok(
       (await page.getAttribute("#board", "data-mode")) === "official",
       `ステージ${stageIndex + 1}は公式モード`
     );
     await solveCurrentStage(page);
-    if (stageIndex < OFFICIAL_IDS.length - 1) {
+    if (stageIndex < 2) {
       await page.waitForFunction(
-        (nextStageId) => {
+        (nextStageNumber) => {
           const board = document.querySelector("#board");
           const firstCell = board?.querySelector(".cell");
           return (
-            board?.dataset.stageId === nextStageId &&
+            document.querySelector("#hud-stage")?.textContent ===
+              `${nextStageNumber}/3` &&
             document.querySelector("#screen-game")?.classList.contains("active") &&
             firstCell &&
             !firstCell.disabled
           );
         },
-        OFFICIAL_IDS[stageIndex + 1],
+        stageIndex + 2,
         { timeout: 6000 }
       );
     }
   }
-  assertOfficialIds(ids);
+  ok(ids.every((id) => /^STG-[0-9a-f]{8}$/.test(id)), "公式は完成バンクから出題");
+  ok(new Set(ids).size === 3, "公式3問のIDは重複なし");
+  ok(
+    JSON.stringify(difficulties) === JSON.stringify([1, 2, 3]),
+    "公式は難易度1→2→3"
+  );
+  ok(
+    (await page.getAttribute("#board", "data-stage-bank-fallback")) === "false",
+    "公式は別問題へのfallbackなし"
+  );
 
   await page.waitForSelector("#screen-result.active", { timeout: 5000 });
   ok((await page.textContent("#result-mode")).includes("公式"), "公式結果表示");
@@ -485,31 +521,6 @@ async function main() {
 
   await page.click("#home-btn");
   await page.waitForSelector("#screen-home.active");
-
-  let releasePracticeBank;
-  await page.route("**/generated/variable-stage-bank-v2.json", async (route) => {
-    await new Promise((resolve) => {
-      releasePracticeBank = resolve;
-    });
-    await route.continue();
-  });
-  await page.click("#start-practice-btn");
-  await page.waitForSelector("#start-preparing:not([hidden])");
-  ok(
-    await page.$eval("#howto-btn", (element) => element.disabled),
-    "練習準備中は別操作を無効化"
-  );
-  for (let attempt = 0; attempt < 100 && !releasePracticeBank; attempt++) {
-    await page.waitForTimeout(10);
-  }
-  ok(typeof releasePracticeBank === "function", "練習bank取得を遅延できる");
-  await page.click("#cancel-start-btn");
-  releasePracticeBank();
-  await page.waitForFunction(() => document.querySelector("#start-preparing")?.hidden);
-  await page.waitForTimeout(150);
-  ok(await page.isVisible("#screen-home"), "練習準備を中止してホームを維持");
-  ok(!(await page.isVisible("#screen-countdown")), "中止した古い要求は開始しない");
-  await page.unroute("**/generated/variable-stage-bank-v2.json");
 
   await page.click("#start-practice-btn");
   await page.waitForSelector("#screen-countdown.active");

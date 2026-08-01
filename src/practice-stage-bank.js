@@ -1,7 +1,7 @@
 import { STAGES } from "./stages.js";
-import { buildPracticeStageSets } from "./game.js";
+import { buildRandomStageSets } from "./game.js";
 import {
-  PRACTICE_STAGE_BANK_FEATURE,
+  RANDOM_STAGE_BANK_FEATURE,
   getStageBankDescriptor,
 } from "./stage-bank-config.js";
 import {
@@ -14,8 +14,10 @@ export const PRACTICE_STAGE_BANK_URL = new URL(
   import.meta.url
 ).href;
 export const PRACTICE_STAGE_BANK_TIMEOUT_MS = 8000;
+export const RANDOM_STAGE_BANK_URL = PRACTICE_STAGE_BANK_URL;
+export const RANDOM_STAGE_BANK_TIMEOUT_MS = PRACTICE_STAGE_BANK_TIMEOUT_MS;
 
-function fallbackResult(reason, feature = PRACTICE_STAGE_BANK_FEATURE) {
+function fallbackResult(reason, feature = RANDOM_STAGE_BANK_FEATURE) {
   const descriptor = getStageBankDescriptor(feature.fallbackBankId);
   return {
     bankId: descriptor.id,
@@ -27,7 +29,7 @@ function fallbackResult(reason, feature = PRACTICE_STAGE_BANK_FEATURE) {
 
 export function validatePracticeStageBankPayload(
   bank,
-  feature = PRACTICE_STAGE_BANK_FEATURE
+  feature = RANDOM_STAGE_BANK_FEATURE
 ) {
   const descriptor = getStageBankDescriptor(feature.primaryBankId);
   const problems = [];
@@ -44,8 +46,8 @@ export function validatePracticeStageBankPayload(
   if (bank.runtimeEnabled !== true) {
     problems.push("practice bank runtimeEnabled must be true");
   }
-  if (bank.rankingEligible !== false) {
-    problems.push("practice bank rankingEligible must be false");
+  if (bank.rankingEligible !== true) {
+    problems.push("random bank rankingEligible must be true");
   }
   if (bank.stageCount !== descriptor.stageCount) {
     problems.push(`practice bank stageCount must be ${descriptor.stageCount}`);
@@ -90,9 +92,9 @@ export function validatePracticeStageBankPayload(
 
     if (!problems.length) {
       try {
-        buildPracticeStageSets(bank.stages);
+        buildRandomStageSets(bank.stages);
       } catch (_) {
-        problems.push("practice bank must provide a valid difficulty 1-2-3 set");
+        problems.push("random bank must provide a valid difficulty 1-2-3 set");
       }
     }
   }
@@ -100,11 +102,11 @@ export function validatePracticeStageBankPayload(
   return { valid: problems.length === 0, problems };
 }
 
-export async function loadPracticeStageBank({
+export async function loadRandomStageBank({
   fetchImpl = globalThis.fetch,
-  feature = PRACTICE_STAGE_BANK_FEATURE,
-  url = PRACTICE_STAGE_BANK_URL,
-  timeoutMs = PRACTICE_STAGE_BANK_TIMEOUT_MS,
+  feature = RANDOM_STAGE_BANK_FEATURE,
+  url = RANDOM_STAGE_BANK_URL,
+  timeoutMs = RANDOM_STAGE_BANK_TIMEOUT_MS,
 } = {}) {
   if (!feature.enabled) return fallbackResult("feature-disabled", feature);
   if (typeof fetchImpl !== "function") {
@@ -161,11 +163,11 @@ export async function loadPracticeStageBank({
   }
 }
 
-export function createPracticeStageBankLoader({
-  load = loadPracticeStageBank,
+export function createRandomStageBankLoader({
+  load = loadRandomStageBank,
 } = {}) {
   if (typeof load !== "function") {
-    throw new TypeError("practice stage bank loader must be a function");
+    throw new TypeError("random stage bank loader must be a function");
   }
 
   let cachedPromise = null;
@@ -192,3 +194,7 @@ export function createPracticeStageBankLoader({
     return cachedPromise;
   };
 }
+
+/** 既存の開発用呼び出し名との互換。 */
+export const loadPracticeStageBank = loadRandomStageBank;
+export const createPracticeStageBankLoader = createRandomStageBankLoader;

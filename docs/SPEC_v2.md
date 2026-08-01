@@ -6,8 +6,8 @@
 - 公開名・リポジトリ名: `tomatooku`
 - 標準公開先: `https://chameleonjp-lab.github.io/tomatooku/`
 - 基準ブランチ: `main`
-- 更新日: 2026-08-01
-- 現在状態: ランダム練習84問接続済み／描写・高速入力・取得競合の補修実装済み／Supabase再登録・ランキング取得・送信再開／GitHub Pages公開元設定・公開後実機確認待ち
+- 更新日: 2026-08-02
+- 現在状態: 公式・練習の共通ランダム問題バンク接続済み／Supabaseランキング取得・公式送信再開／GitHub Pages公開元設定・公開後実機確認待ち
 
 ## 1. ゲーム概要
 
@@ -28,22 +28,15 @@
 mode = "official"
 ```
 
-出題は固定する。
-
-```text
-T001
-T011
-T021
-```
-
-順序も固定し、全プレイヤーが同じ条件で遊ぶ。ランキング対象となる唯一のモードで、完了時に結果を1回送信する。
+承認済み完成バンクから難易度1・2・3を1問ずつランダムに選ぶ。ステージIDと正解配置署名が重複しない有効な3問組だけを使う。ランキング対象となる唯一のモードで、完了時に結果を1回送信する。
 
 起動時またはテストで次を検証する。
 
-- 3件すべてが存在
+- 問題バンクの取得と検証に成功
 - IDが重複しない
 - 難易度が1→2→3
 - 正解配置署名が重複しない
+- 読込失敗時に別の問題へfallbackしない
 
 ### ランダム練習
 
@@ -53,7 +46,7 @@ mode = "practice"
 
 通常時は承認済み84問完成バンク `candidate-v2-variable-4-6-final`から、難易度1・2・3を1問ずつ選ぶ。ステージIDと正解配置署名が重複しない有効な3問組だけを利用する。
 
-完成バンクは練習開始時に遅延取得し、取得とJSON読込を8秒で打ち切る。その後Stage Schema v2で検証し、取得の時間切れまたは検証失敗時は既存30問の`legacy-v1`へ自動fallbackする。一時的なfallback結果は固定せず、次の練習開始時に再取得する。完成バンクの取得成功とfeature gate無効時のfallbackだけは同じページ内で再利用する。
+完成バンクは公式または練習の開始時に遅延取得し、取得とJSON読込を8秒で打ち切る。その後Stage Schema v2で検証する。公式は取得の時間切れまたは検証失敗時に開始を止める。練習は既存30問の`legacy-v1`へ自動fallbackし、一時的なfallback結果は固定せず次の開始時に再取得する。完成バンクの取得成功とfeature gate無効時のfallbackだけは同じページ内で再利用する。
 
 ランダム練習の結果は常にランキングへ送信しない。
 
@@ -64,19 +57,19 @@ index.html
   画面構造、モード選択、結果内訳、公開導線
 
 src/main.js
-  状態遷移、DOM、入力、共有、ランキング連携、練習バンク起動
+  状態遷移、DOM、入力、共有、ランキング連携、共通ランダムバンク起動
 
 src/game.js
   盤面ルール、モード別問題選出、セッション、タイマー、補正タイム
 
 src/stages.js
-  公式3問と練習fallbackが利用する検証済み30ステージ
+  練習fallbackが利用する検証済み30ステージ
 
 src/stage-bank-config.js
-  公式・練習active bank、feature gate、bank catalog
+  公式・練習共通active bank、feature gate、bank catalog
 
 src/practice-stage-bank.js
-  84問完成バンクの遅延取得、検証、時間切れ、fallback、再試行
+  共通完成バンクの遅延取得、検証、時間切れ、練習fallback、再試行
 
 src/variable-stage-contract.js
   4〜6マス可変エリアのStage Schema v2独立validator
@@ -228,7 +221,7 @@ POST /rest/v1/rpc/submit_score
   "p_display_name": "表示名",
   "p_game_slug": "tomatoku",
   "p_score": 4835,
-  "p_client_version": "tomatooku-web-2.4.0-ranking-restored-v1"
+  "p_client_version": "tomatooku-web-2.6.0-random-official-v1"
 }
 ```
 
@@ -270,7 +263,11 @@ rankingsEnabled: true
 submissionsEnabled: true
 ```
 
-ホームと結果画面でベストランキングを取得し、詳細ランキング導線を表示する。公式3問の完了時だけ送信し、練習は送信しない。
+ホームと結果画面でベストランキングを取得し、詳細ランキング導線を表示する。公式モードの完了時だけ送信し、練習は送信しない。
+
+固定出題版とランダム出題版は同じ`game_slug`を使い、現行の取得RPCは`client_version`で分離しない。
+2026年8月2日の読み取り専用確認で旧版の実プレイ1件を確認したため、公開前に記録リセット、別slug、
+またはサーバー側の世代分離のいずれかを決定する。決定前は公開しない。
 
 障害時は`submissionsEnabled`を先に無効化して新規送信を止める。原因が取得側にもある場合は`rankingsEnabled`も無効化する。
 
@@ -378,9 +375,9 @@ ranking Promise
 
 単体:
 
-- 公式IDと順序
-- 公式設定不正の拒否
-- 練習500回の重複なし
+- 共通問題バンクの有効3問組
+- 公式・練習500回の重複なし
+- 公式で複数の組み合わせが選ばれること
 - 補正タイム式
 - 小数2桁表示
 - ステージ別時間と加算回数
@@ -390,7 +387,7 @@ ranking Promise
 - 公式送信ゲート
 - 共通RPC本文
 - 同一play ID二重送信防止
-- 公式active bankと練習active bankの分離
+- 公式と練習のactive bank一致
 - 84問完成バンクpayload検証
 - feature gate有効・無効
 - HTTP・不正bank・通信例外・8秒時間切れfallback
@@ -401,12 +398,13 @@ E2E:
 - Chromium・WebKitで同じ主要フローを実行
 - モードボタン
 - カウントダウン
-- 公式ID順序
+- 公式のランダム3問と難易度順
 - 公式3問クリア
 - 補正タイム結果
 - ステージ別内訳
 - 練習84問の難易度1→2→3
-- 公式開始時の84問JSON取得禁止
+- 公式開始時の完成バンク取得
+- 公式読込失敗時の開始停止
 - 練習結果のランキング送信禁止
 - fallbackとfeature gate
 - 送信ゲート表示
@@ -421,7 +419,7 @@ E2E:
 - 公式送信ゲート有効化
 - 実験場カード・詳細ランキング導線
 - Chromium・WebKitによるiPhone SE相当E2E
-- 公式と練習84問の隔離、fallback、feature gate E2E
+- 公式・練習の共通バンク、公式開始停止、練習fallback、feature gate E2E
 - WebKit自動検証は実機Safari確認の代用にしない
 
 公開後に人間が確認する残作業:
