@@ -93,7 +93,7 @@ hintCount
 - play IDが空: 送信しない
 - 同じplay ID: 1回だけ送信
 
-ただし、現在は`public.games`への`tomatoku`登録と実疎通が未完了のため、`submissionsEnabled=false`で送信ゲートを閉じる。
+このレビュー時点では`public.games`への`tomatoku`登録と実疎通が未完了だったため、`submissionsEnabled=false`で送信ゲートを閉じた。2026年8月1日に再登録と実疎通を完了し、現在は`submissionsEnabled=true`で公式3問だけを送信する。
 
 ゲート解除条件:
 
