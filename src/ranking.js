@@ -1,15 +1,15 @@
 import { RANKING_CONFIG } from "./ranking-config.js";
 
 /**
- * トマトオク 共通ランキング連携 (Supabase REST RPC)
+ * トマトオク 検証付きランキング連携
  *
  * - Publishable key だけを `apikey` ヘッダーへ設定する。
  * - secret / service_role key と Authorization: Bearer は使用しない。
- * - 公式モードかつ明示的な送信ゲート有効時だけ送信する。
+ * - 公式はEdge Functionへ操作記録を送り、ランキング取得だけ共有REST RPCを使う。
  */
 
-export const DEFAULT_CLIENT_VERSION = "tomatooku-web-2.1.0-mode-score-v1";
-const MAX_POSTGRES_INT = 2_147_483_647;
+export const DEFAULT_CLIENT_VERSION =
+  "tomatooku-web-3.0.0-verified-competition-v1";
 const CONTROL_OR_FORMAT_RE = /[\p{Cc}\p{Cf}]/gu;
 const PLACEHOLDER_RE = /(xxxx|example|placeholder|公開可能なキー|publishable key|anon key)/i;
 
@@ -20,7 +20,7 @@ const DEFAULTS = {
   gameSlug: RANKING_CONFIG.gameSlug,
   clientVersion: RANKING_CONFIG.clientVersion || DEFAULT_CLIENT_VERSION,
   timeoutMs: RANKING_CONFIG.timeoutMs,
-  submitRpc: RANKING_CONFIG.submitRpc,
+  competitionFunction: RANKING_CONFIG.competitionFunction,
   bestRankingRpc: RANKING_CONFIG.bestRankingRpc,
   firstRankingRpc: RANKING_CONFIG.firstRankingRpc,
   rankingsEnabled: RANKING_CONFIG.rankingsEnabled === true,
@@ -92,14 +92,6 @@ export function normalizeDisplayName(input) {
     .slice(0, 20);
 }
 
-function normalizeScore(score) {
-  const numeric = Number(score);
-  if (!Number.isFinite(numeric)) return null;
-  const integer = Math.floor(numeric);
-  if (integer < 0 || integer > MAX_POSTGRES_INT) return null;
-  return integer;
-}
-
 function normalizeLimit(limit) {
   const numeric = Math.floor(Number(limit));
   if (!Number.isFinite(numeric)) return 10;
@@ -116,6 +108,7 @@ function baseResult(status, message) {
     isFirstPlay: false,
     isNewBest: false,
     rank: null,
+    score: null,
     message,
   };
 }
@@ -197,7 +190,118 @@ export function createRankingClient(config = CONFIG, dependencies = {}) {
     }
   }
 
-  function submitScore({ playId, mode, playerName, score } = {}) {
+  async function competitionRequest(action, body = {}) {
+    if (!isConfigured(effectiveConfig)) {
+      const error = new Error("ranking_not_configured");
+      error.code = "NOT_CONFIGURED";
+      throw error;
+    }
+    if (typeof fetchImpl !== "function") {
+      const error = new Error("fetch_unavailable");
+      error.code = "FETCH_UNAVAILABLE";
+      throw error;
+    }
+
+    const controller = new AbortController();
+    const timer = setTimeoutImpl(
+      () => controller.abort(),
+      effectiveConfig.timeoutMs
+    );
+    const endpoint =
+      `${String(effectiveConfig.supabaseUrl).replace(/\/$/, "")}/functions/v1/` +
+      encodeURIComponent(effectiveConfig.competitionFunction);
+
+    try {
+      const response = await fetchImpl(endpoint, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          apikey: publishableKeyOf(effectiveConfig),
+        },
+        body: JSON.stringify({
+          action,
+          clientVersion: effectiveConfig.clientVersion,
+          ...body,
+        }),
+        signal: controller.signal,
+      });
+      if (!response || typeof response.ok !== "boolean") {
+        throw new Error("invalid_response");
+      }
+      const data = await response.json().catch(() => null);
+      if (!response.ok || !data || typeof data !== "object") {
+        const error = new Error(`competition_http_${response.status || 0}`);
+        error.code = "HTTP_ERROR";
+        throw error;
+      }
+      return data;
+    } catch (error) {
+      if (controller.signal.aborted && (!error || error.name !== "AbortError")) {
+        const timeoutError = new Error("ranking_timeout");
+        timeoutError.name = "AbortError";
+        timeoutError.code = "TIMEOUT";
+        throw timeoutError;
+      }
+      throw error;
+    } finally {
+      clearTimeoutImpl(timer);
+    }
+  }
+
+  async function prepareOfficialRun({ playerName } = {}) {
+    if (!isSubmissionEnabled(effectiveConfig)) {
+      return { status: "disabled", runToken: null, stageIds: [] };
+    }
+    const normalizedName = normalizeDisplayName(playerName);
+    if (!normalizedName) {
+      return { status: "error", runToken: null, stageIds: [] };
+    }
+    try {
+      const data = await competitionRequest("prepare", {
+        playerName: normalizedName,
+      });
+      if (
+        data.accepted !== true ||
+        !String(data.runToken || "").trim()
+      ) {
+        return { status: "error", runToken: null, stageIds: [] };
+      }
+      return {
+        status: "ok",
+        runToken: String(data.runToken),
+        stageIds: [],
+      };
+    } catch (_) {
+      return { status: "error", runToken: null, stageIds: [] };
+    }
+  }
+
+  async function beginOfficialRun({ runToken } = {}) {
+    const token = String(runToken || "").trim();
+    if (!token || !isSubmissionEnabled(effectiveConfig)) {
+      return { status: "error", stageIds: [] };
+    }
+    try {
+      const data = await competitionRequest("begin", { runToken: token });
+      const stageIds = Array.isArray(data.stageIds)
+        ? data.stageIds.map(String)
+        : [];
+      if (data.accepted !== true || stageIds.length !== 3) {
+        return { status: "error", stageIds: [] };
+      }
+      return { status: "ok", stageIds };
+    } catch (_) {
+      return { status: "error", stageIds: [] };
+    }
+  }
+
+  function submitScore({
+    playId,
+    mode,
+    runToken,
+    transcript,
+    elapsedMs,
+  } = {}) {
     if (mode !== "official") {
       return Promise.resolve(
         baseResult("skipped", "ランダム練習はランキング対象外です")
@@ -210,9 +314,17 @@ export function createRankingClient(config = CONFIG, dependencies = {}) {
     }
 
     const normalizedPlayId = String(playId || "").trim();
-    const normalizedName = normalizeDisplayName(playerName);
-    const normalizedScore = normalizeScore(score);
-    if (!normalizedPlayId || !normalizedName || normalizedScore === null) {
+    const normalizedRunToken = String(runToken || "").trim();
+    const normalizedElapsedMs = Math.floor(Number(elapsedMs));
+    if (
+      !normalizedPlayId ||
+      !normalizedRunToken ||
+      !Array.isArray(transcript) ||
+      transcript.length < 15 ||
+      transcript.length > 300 ||
+      !Number.isFinite(normalizedElapsedMs) ||
+      normalizedElapsedMs < 0
+    ) {
       return Promise.resolve(
         baseResult("error", "ランキングへ送信できない結果です")
       );
@@ -224,13 +336,12 @@ export function createRankingClient(config = CONFIG, dependencies = {}) {
 
     const promise = (async () => {
       try {
-        const data = await rpc(effectiveConfig.submitRpc, {
-          p_display_name: normalizedName,
-          p_game_slug: effectiveConfig.gameSlug,
-          p_score: normalizedScore,
-          p_client_version: effectiveConfig.clientVersion,
+        const data = await competitionRequest("finish", {
+          runToken: normalizedRunToken,
+          transcript,
+          elapsedMs: normalizedElapsedMs,
         });
-        const row = Array.isArray(data) ? data[0] : data;
+        const row = data;
         if (!row || row.accepted !== true) {
           return baseResult(
             "error",
@@ -245,8 +356,13 @@ export function createRankingClient(config = CONFIG, dependencies = {}) {
           playCount: numberOrNull(row.result_play_count),
           isFirstPlay: row.is_first_play === true,
           isNewBest: row.is_new_best === true,
+          underReview: row.under_review === true,
           rank: null,
-          message: "ランキングへ登録しました",
+          score: numberOrNull(row.score),
+          message:
+            row.under_review === true
+              ? "記録を受け付けました（確認中）"
+              : "ランキングへ登録しました",
         };
       } catch (_) {
         return baseResult("error", "ランキング送信に失敗しました");
@@ -299,6 +415,8 @@ export function createRankingClient(config = CONFIG, dependencies = {}) {
 
   return {
     config: effectiveConfig,
+    prepareOfficialRun,
+    beginOfficialRun,
     submitScore,
     fetchBestRanking: (limit) => fetchRankingByType("best", limit),
     fetchFirstRanking: (limit) => fetchRankingByType("first", limit),
@@ -310,6 +428,14 @@ const defaultClient = createRankingClient(CONFIG);
 
 export function submitScore(args) {
   return defaultClient.submitScore(args);
+}
+
+export function prepareOfficialRun(args) {
+  return defaultClient.prepareOfficialRun(args);
+}
+
+export function beginOfficialRun(args) {
+  return defaultClient.beginOfficialRun(args);
 }
 
 export function fetchBestRanking(limit = 10) {

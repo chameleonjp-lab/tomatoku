@@ -9,6 +9,7 @@ export const GITHUB_PAGES_PUBLIC_ENTRIES = Object.freeze([
   "index.html",
   "src",
   "generated/variable-stage-bank-v2.json",
+  "generated/balanced-official-draw-v1.json",
 ]);
 
 function assertSafeOutputDirectory(rootDir, outputDir) {

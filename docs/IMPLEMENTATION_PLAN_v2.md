@@ -4,7 +4,7 @@
 - 対象: `chameleonjp-lab/tomatooku`
 - 基準ブランチ: `main`
 - 更新日: 2026-08-02
-- 現在状態: 完成バンクを公式・練習の共通ランダム出題へ接続済み／Supabaseランキング取得・公式送信再開／GitHub Pages自動公開はリポジトリ設定待ち／公開後実機確認待ち
+- 現在状態: 旧ランキング一時停止／公平抽選・サーバー検証方式の修正候補／Draft PR・再開承認待ち
 
 ## 1. 運用ルール
 
@@ -31,8 +31,8 @@
 
 ### モード
 
-- 公式primary: `candidate-v2-variable-4-6-final`から難易度1→2→3をランダム選出
-- ランダム練習primary: 公式と同じ完成バンクから難易度1→2→3をランダム選出
+- 公式primary: サーバーが`balanced-official-draw-v1`から公平抽選済みの難易度1→2→3を発行
+- ランダム練習primary: 公式と同じ公平抽選表から難易度1→2→3をランダム選出
 - ランダム練習fallback: `legacy-v1`の既存30問
 - 公式はprimary読込失敗時にfallbackせず開始を止める
 - 練習結果はランキング未送信
@@ -48,13 +48,14 @@
 
 ### ランキング
 
-- `game_slug`: `tomatoku`
+- `game_slug`: `tomatoku_competition_v1`
 - 短い補正タイムが上位
 - `score_scale=100`
 - `score_decimals=2`
-- 公式1プレイにつき送信1回
-- 現在は`rankingsEnabled=true`、`submissionsEnabled=true`
-- 取得・公式送信・詳細ランキング導線を有効化
+- 公式1プレイにつき一度限りのrun tokenと操作記録送信1回
+- DBで旧自己申告送信経路を拒否し、サーバーが補正タイムを再計算
+- コード設定は`rankingsEnabled=true`、`submissionsEnabled=true`
+- DBは旧slugと新slugを停止し、マージ・再開の明示承認待ち
 
 ## 3. 完了済みwork package
 
@@ -129,6 +130,22 @@
 - 利用者向け画面から問題バンクの総数と固定出題の説明を削除
 - ランキング送信は公式1プレイ1回、練習0回を維持
 - client versionを`tomatooku-web-2.6.0-random-official-v1`へ更新
+
+### 3-14. 競技ランキング安全性修正
+
+状態: **implemented / verification and Draft PR pending**
+
+- 旧`tomatoku`を一時停止し、実プレイ1件を削除せず保持
+- 新slug`tomatoku_competition_v1`でランキング世代を分離
+- 8 deck・224組の公平抽選表を導入し、各問題の出現確率を厳密に`1/28`へ統一
+- 組の難しさ指標の最大/最小を1.08以内へ制限
+- Edge Functionがprepare/begin/finishと一度限りのrun tokenを管理
+- ブラウザは自己申告スコアではなく操作記録を送信
+- サーバーで全操作を再生し、誤タップ・ヒント・補正タイムを再計算
+- 既存2送信RPCと直接書き込みから新slugへの登録をDB triggerで拒否
+- 入力イベント先頭で終了時刻を固定し、描画・演出・効果音を計時から除外
+- client versionを`tomatooku-web-3.0.0-verified-competition-v1`へ更新
+- 新slugとrun受付は独立レビュー・CI・人間承認まで停止
 
 ### 3-7. CI
 

@@ -1,0 +1,2 @@
+[functions.tomatoku-competition]
+verify_jwt = false

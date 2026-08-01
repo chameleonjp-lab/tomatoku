@@ -26,12 +26,13 @@
 | GitHub Pages公開URL | `https://chameleonjp-lab.github.io/tomatooku/` |
 | GitHub Pages反映SHAまたは対応する版 | 未記入 |
 | GitHub Pages反映確認日時 | 未記入 |
-| 公式bank | `candidate-v2-variable-4-6-final` |
+| 公式bank | `candidate-v2-variable-4-6-final` + `balanced-official-draw-v1` |
 | 練習primary bank | `candidate-v2-variable-4-6-final` |
 | 練習fallback bank | `legacy-v1` |
 | 練習feature gate | `enabled`を想定。実値を記録 |
-| ランキング取得ゲート | `rankingsEnabled=true`。実値を記録 |
-| 公式ランキング送信ゲート | `submissionsEnabled=true`。実値を記録 |
+| ランキング世代 | `tomatoku_competition_v1` |
+| ランキング取得ゲート | コード`rankingsEnabled=true`、DB再開時の実値を記録 |
+| 公式ランキング送信ゲート | コード`submissionsEnabled=true`、DB`accepting_runs=true`を再開承認時だけ設定 |
 | 確認者 | 未記入 |
 
 記録へsecret key、service role key、アクセストークン、個人のメールアドレスや電話番号を貼らない。ランキング実送信に使う表示名は、本名を避け、確認用であることを識別できる名前にする。
@@ -71,16 +72,19 @@ iPhone SE相当Chromium / WebKit E2EはGitHub Actionsの自動検証であり、
 
 - [ ] 公式は共通完成バンクから難易度1→2→3の順で、各プレイ3ステージだけ出題される。
 - [ ] 公式を複数回開始したとき、固定された同じ3問だけが繰り返されない。
+- [ ] 各難易度の全問題が同じ出現確率で、承認済み公平抽選表以外の組が出ない。
 - [ ] 公式の問題読込に失敗したとき、別の問題へ切り替えてランキング対象プレイを始めない。
 - [ ] 結果の補正タイムが`実時間 + 誤タップ×3秒 + ヒント×30秒`の内訳と一致する。
 - [ ] 公式完了時にランキング送信中から、登録成功または送信失敗へ表示が変わる。
-- [ ] 同じ公式play IDでは送信RPCが1件だけで、再描画や連打による二重送信がない。
+- [ ] 同じ公式play IDとrun tokenでは完了送信が1件だけで、同一内容の再送は保存済み結果、異なる内容の再利用は拒否になる。
+- [ ] 旧`submit_score`、`submit_score_with_metadata`、直接書き込みで新slugへ登録できない。
+- [ ] 最終正解後の描画・演出・効果音が補正タイムへ入らない。
 - [ ] ホームと結果画面でベストランキングを読み込める。
 - [ ] 通信失敗時も結果画面と計測内訳が失われず、再ゲームとホーム操作を続けられる。
 
 開発者ツールまたは自動試験で確認した通信件数、証跡: 未記入
 
-Supabase再登録と公開用キー経由の実疎通は2026年8月1日に完了した。応答喪失後の単純な再送は行わない。現行RPCはplay IDを受け取らず、プレイ回数が重複する可能性があるため、安全な再送契約は別work packageの人間判断事項とする。
+旧slugの疎通は2026年8月1日に完了したが、同年8月2日の監査で停止した。修正版はサーバー発行の一度限りrun tokenを使う。応答喪失後に同じ完了要求を再送しても重複登録せず保存済み結果を返し、異なる操作記録での再利用は拒否されることを確認する。
 
 ## 7. ランダム練習84問とfallback
 

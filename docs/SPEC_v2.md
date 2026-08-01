@@ -2,12 +2,12 @@
 
 - 文書種別: 現行実装仕様
 - 対象: `chameleonjp-lab/tomatooku`
-- `game_slug`: `tomatoku`
+- `game_slug`: `tomatoku_competition_v1`
 - 公開名・リポジトリ名: `tomatooku`
 - 標準公開先: `https://chameleonjp-lab.github.io/tomatooku/`
 - 基準ブランチ: `main`
 - 更新日: 2026-08-02
-- 現在状態: 公式・練習の共通ランダム問題バンク接続済み／Supabaseランキング取得・公式送信再開／GitHub Pages公開元設定・公開後実機確認待ち
+- 現在状態: 旧ランキング一時停止／公平抽選・サーバー検証方式の修正候補／マージ・再開承認待ち
 
 ## 1. ゲーム概要
 
@@ -28,14 +28,16 @@
 mode = "official"
 ```
 
-承認済み完成バンクから難易度1・2・3を1問ずつランダムに選ぶ。ステージIDと正解配置署名が重複しない有効な3問組だけを使う。ランキング対象となる唯一のモードで、完了時に結果を1回送信する。
+サーバーが承認済み公平抽選表から難易度1・2・3を1問ずつ選び、一度限りのrun tokenとともに発行する。ランキング対象となる唯一のモードで、完了時に自己申告スコアではなく操作記録を1回送信する。
 
 起動時またはテストで次を検証する。
 
 - 問題バンクの取得と検証に成功
 - IDが重複しない
 - 難易度が1→2→3
-- 正解配置署名が重複しない
+- 隣り合うステージの正解配置署名が重複しない
+- 発行された3問が承認済み公平抽選表に存在する
+- run tokenが一度限りである
 - 読込失敗時に別の問題へfallbackしない
 
 ### ランダム練習
@@ -77,11 +79,17 @@ src/variable-stage-contract.js
 generated/variable-stage-bank-v2.json
   人間承認済み84問完成バンク
 
+generated/balanced-official-draw-v1.json
+  各問題の出現率を均等化した承認済み224組
+
 src/ranking-config.js
   ブラウザ公開可能な接続設定、取得ゲート、送信ゲート
 
 src/ranking.js
-  共有Supabase RPC、通信状態、play ID単位の二重送信防止
+  Edge Functionによるprepare/begin/finish、ランキング取得、二重送信防止
+
+supabase/functions/tomatoku-competition/
+  操作記録再生、サーバー側スコア計算、一度限りrun検証
 
 src/tutorial.js
   本番と同じ色別エリアを表示し、0.5倍速で進む4×4チュートリアル
@@ -131,6 +139,8 @@ GameSession {
   stages: Stage[];
   stageBankId: string;
   stageBankFallback: boolean;
+  runToken: string;
+  actions: Action[];
   index: number;
   states: StageState[];
   mistakeCount: number;
@@ -151,8 +161,8 @@ play IDは開始ごとに新しくする。画面遷移だけを理由にラン�
 時計は`performance.now()`を優先する。
 
 - カウントダウン中は未計測
-- 盤面DOM構築・描画後の次フレームで開始
-- 5個目の配置でクリア確定した瞬間に停止
+- 盤面を操作可能にした直後に開始
+- 入力イベント先頭の時刻を保持し、5個目の正解入力時刻で停止
 - クリア演出中は未計測
 - 次盤面の描画待ち中は未計測
 - `finishStage()`を二重に呼んでも重複加算しない
@@ -210,20 +220,26 @@ best_score_label = ベストタイム
 
 ## 9. ランキング契約
 
-送信:
+公式送信:
 
 ```text
-POST /rest/v1/rpc/submit_score
+POST /functions/v1/tomatoku-competition
+prepare -> begin -> finish
 ```
 
 ```json
 {
-  "p_display_name": "表示名",
-  "p_game_slug": "tomatoku",
-  "p_score": 4835,
-  "p_client_version": "tomatooku-web-2.6.0-random-official-v1"
+  "action": "finish",
+  "clientVersion": "tomatooku-web-3.0.0-verified-competition-v1",
+  "runToken": "server-issued-token",
+  "transcript": [],
+  "elapsedMs": 18350
 }
 ```
+
+スコア、誤タップ数、ヒント数は送信値を信用せず、サーバーが保管済み問題と操作記録から再計算する。
+
+サーバー時刻との差が許容外なら拒否し、60秒未満、通信差が1秒を超える記録、またはベスト・初回・回数のいずれかで公開上位10位へ入る可能性がある記録は確認待ちとして通常ランキングへ自動掲載しない。確認待ちの承認・失格・再集計はservice role専用関数だけで行う。
 
 取得:
 
@@ -251,23 +267,21 @@ updated_at
 - `rankingsEnabled === true`
 - `submissionsEnabled === true`
 - 同一play IDでは1回だけ
+- サーバー発行run tokenがある
+- 操作記録が3問のクリアを再現できる
 
 練習、リタイア、設定不備、送信ゲートOFFでは送信しない。
 
 ## 10. 送信ゲート
 
-2026年8月1日に`public.games`へ`tomatoku`を再登録し、Publishable keyで取得、2回送信、初回、ベスト、集計を確認した。確認用データを削除した後の現行設定は次のとおり。
+2026年8月2日の監査で、旧記録混在、自己申告スコア、抽選偏り、計時境界の問題を確認した。旧`tomatoku`は`is_active=false`で一時停止し、旧版の実プレイ1件は履歴として保持する。修正版は別slug`tomatoku_competition_v1`を使う。
 
 ```js
 rankingsEnabled: true
 submissionsEnabled: true
 ```
 
-ホームと結果画面でベストランキングを取得し、詳細ランキング導線を表示する。公式モードの完了時だけ送信し、練習は送信しない。
-
-固定出題版とランダム出題版は同じ`game_slug`を使い、現行の取得RPCは`client_version`で分離しない。
-2026年8月2日の読み取り専用確認で旧版の実プレイ1件を確認したため、公開前に記録リセット、別slug、
-またはサーバー側の世代分離のいずれかを決定する。決定前は公開しない。
+DB移行直後は新slugも`is_active=false`、`accepting_runs=false`とし、明示的なマージ・再開承認まで公式runを発行しない。ホームと結果画面の取得先も新slugへ分離する。練習は送信しない。
 
 障害時は`submissionsEnabled`を先に無効化して新規送信を止める。原因が取得側にもある場合は`rankingsEnabled`も無効化する。
 

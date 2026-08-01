@@ -8,11 +8,22 @@ import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
 import { launchBrowser } from "./launch.js";
+import { validateTranscript } from "../supabase/functions/tomatoku-competition/validator.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(__dirname, "..");
 const PORT = 8099;
 const N = 5;
+const finalBank = JSON.parse(
+  fs.readFileSync(path.join(ROOT, "generated/variable-stage-bank-v2.json"), "utf8")
+);
+const competitionDraw = JSON.parse(
+  fs.readFileSync(path.join(ROOT, "generated/balanced-official-draw-v1.json"), "utf8")
+);
+const officialStageIds = competitionDraw.decks[0].slots[0].slice(0, 3);
+const officialStages = officialStageIds.map((stageId) =>
+  finalBank.stages.find((stage) => stage.id === stageId)
+);
 
 const MIME = {
   ".html": "text/html",
@@ -144,34 +155,60 @@ async function main() {
   });
   const page = await context.newPage();
   let rpcRequests = 0;
+  let competitionRequests = 0;
   let submitRequests = 0;
 
   await page.route("**/rest/v1/rpc/**", async (route) => {
     rpcRequests++;
     const url = route.request().url();
-    if (url.endsWith("/submit_score")) {
-      submitRequests++;
-      await route.fulfill({
-        status: 200,
-        contentType: "application/json",
-        body: JSON.stringify([
-          {
-            accepted: true,
-            result_first_score: 4834,
-            result_best_score: 4500,
-            result_play_count: 2,
-            is_first_play: false,
-            is_new_best: true,
-          },
-        ]),
-      });
-      return;
-    }
-
+    const body = route.request().postDataJSON();
+    ok(
+      body.p_game_slug === "tomatoku_competition_v1",
+      "ランキング取得は新世代slugだけを使う"
+    );
     await route.fulfill({
       status: 200,
       contentType: "application/json",
       body: "[]",
+    });
+  });
+
+  await page.route("**/functions/v1/tomatoku-competition", async (route) => {
+    competitionRequests++;
+    const body = route.request().postDataJSON();
+    let responseBody;
+    if (body.action === "prepare") {
+      responseBody = {
+        accepted: true,
+        runToken: "e2e-server-run",
+      };
+    } else if (body.action === "begin") {
+      responseBody = { accepted: true, stageIds: officialStageIds };
+    } else if (body.action === "finish") {
+      submitRequests++;
+      const verified = validateTranscript({
+        stages: officialStages,
+        transcript: body.transcript,
+        elapsedMs: body.elapsedMs,
+      });
+      ok(verified.accepted === true, "操作記録をサーバー規則で再現");
+      responseBody = {
+        accepted: true,
+        score: verified.score,
+        result_first_score: verified.score,
+        result_best_score: verified.score,
+        result_play_count: 1,
+        is_first_play: true,
+        is_new_best: true,
+      };
+    } else {
+      await route.fulfill({ status: 400, contentType: "application/json", body: "{}" });
+      return;
+    }
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify(responseBody),
     });
   });
 
@@ -190,6 +227,10 @@ async function main() {
   ok(
     (await page.textContent("#name-privacy")).includes("本名"),
     "個人情報を入力しない注意"
+  );
+  ok(
+    (await page.textContent("#name-privacy")).includes("操作記録"),
+    "公式で送る操作記録を開始前に説明"
   );
   ok(
     (await page.getAttribute("#player-name", "aria-describedby")) === "name-privacy",
@@ -512,12 +553,13 @@ async function main() {
     document.querySelector("#submit-state")?.textContent.includes("ランキングへ登録しました")
   );
   ok(
-    (await page.textContent("#submit-state")).includes("ベスト 45.00秒"),
+    (await page.textContent("#submit-state")).includes("ベスト "),
     "公式結果のランキング登録表示"
   );
   ok(await page.isVisible("#result-detail-ranking-link"), "詳細ランキングを表示");
   ok(submitRequests === 1, "公式1プレイの送信リクエスト1件");
-  ok(rpcRequests === 3, "ホーム取得・公式送信・結果取得の3件");
+  ok(competitionRequests === 3, "公式prepare・begin・finishの3件");
+  ok(rpcRequests === 2, "ホーム取得・結果取得の2件");
 
   await page.click("#home-btn");
   await page.waitForSelector("#screen-home.active");

@@ -8,21 +8,23 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const root = path.resolve(__dirname, "..");
 const html = fs.readFileSync(path.join(root, "index.html"), "utf8");
 
-assert.equal(RANKING_CONFIG.gameSlug, "tomatoku");
+assert.equal(RANKING_CONFIG.gameSlug, "tomatoku_competition_v1");
+assert.doesNotMatch(html, /gameSlug:\s*["']tomatoku["']/);
 assert.equal(RANKING_CONFIG.rankingsEnabled, true);
 assert.equal(RANKING_CONFIG.submissionsEnabled, true);
 assert.equal(
   RANKING_CONFIG.clientVersion,
-  "tomatooku-web-2.6.0-random-official-v1"
+  "tomatooku-web-3.0.0-verified-competition-v1"
 );
-assert.equal(RANKING_CONFIG.submitRpc, "submit_score");
+assert.equal(RANKING_CONFIG.competitionFunction, "tomatoku-competition");
+assert.equal("submitRpc" in RANKING_CONFIG, false);
 assert.equal(RANKING_CONFIG.bestRankingRpc, "get_best_score_ranking");
 assert.equal(RANKING_CONFIG.firstRankingRpc, "get_first_try_ranking");
 assert.match(RANKING_CONFIG.supabaseUrl, /^https:\/\/[a-z0-9]+\.supabase\.co$/);
 assert.match(RANKING_CONFIG.supabasePublishableKey, /^sb_publishable_/);
 
 const labUrl = "https://chameleonjp.codeberg.page/chameleonjp_lab/";
-const detailUrl = `${labUrl}ranking.html?game=tomatoku`;
+const detailUrl = `${labUrl}ranking.html?game=tomatoku_competition_v1`;
 const escapeRegExp = (value) => value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 
 assert.equal(
@@ -41,7 +43,7 @@ assert.equal((html.match(/data-ranking-only/g) || []).length, 4);
 assert.match(html, /id="detail-ranking-link"[\s\S]*data-ranking-only[\s\S]*hidden/);
 assert.match(
   html,
-  /公式プレイでは、プレイヤー名、補正タイム、ゲーム名、ゲームの版をランキングへ送信します/
+  /公式プレイでは、プレイヤー名、操作記録、計測時間、ゲーム名、ゲームの版を送信し、サーバーで補正タイムを確認します/
 );
 assert.match(html, /1プレイにつき1回ランキングへ送信/);
 assert.doesNotMatch(html, /現在は記録を保存しません/);
