@@ -1,6 +1,7 @@
-# トマトオク v2 ランキング公開確認
+# トマトオク v2 ランキング再開確認
 
-- 実施日: 2026-07-19
+- 初回実施日: 2026-07-19
+- 再開実施日: 2026-08-01
 - 対象リポジトリ: `chameleonjp-lab/tomatooku`
 - `game_slug`: `tomatoku`
 - Supabaseプロジェクト: `chameleonJP-Lab`
@@ -20,7 +21,7 @@
 | game_slug | `tomatoku` |
 | title | トマトオク |
 | game_url | `https://chameleonjp-lab.github.io/tomatooku/` |
-| display_order | `33` |
+| display_order | `34` |
 | release_date | `2026-07-19` |
 | is_active | `true` |
 | top_ranking_type | `best` |
@@ -129,7 +130,8 @@ players_left = 0
 `src/ranking-config.js`:
 
 ```text
-clientVersion = tomatooku-web-2.2.0-ranking-live-v1
+clientVersion = tomatooku-web-2.4.0-ranking-restored-v1
+rankingsEnabled = true
 submissionsEnabled = true
 ```
 
@@ -159,6 +161,7 @@ submissionsEnabled = true
 `scripts/launch-config.test.js`で次を固定する。
 
 - `gameSlug = tomatoku`
+- `rankingsEnabled = true`
 - `submissionsEnabled = true`
 - 本番用clientVersion
 - 共通RPC名
@@ -176,7 +179,7 @@ LAUNCH CONFIG TEST RESULT: PASS
 
 - GitHub Pagesへ最新`main`が反映されたこと
 - iPhone Safariから公式3問を通しプレイできること
-- 実ブラウザからの`submit_score`成功
+- iPhone Safariからの`submit_score`成功
 - 実験場トップへトマトオクが表示されること
 - 詳細ランキングで初回・ベストが小数2桁の秒表示になること
 - WebKit / 320px幅のE2E
@@ -206,3 +209,14 @@ where game_slug = 'tomatoku';
 - WebKit / iPhone実機確認
 - GitHub Pages公開反映確認
 - 公開前の総合監査
+
+## 12. 2026年8月1日の再開記録
+
+- `public.games`へ`tomatoku`を表示順34で再登録
+- `games_select_public`、`anon`の`SELECT`、4つの共通RPC実行権限を再確認
+- Publishable keyだけでゲーム設定を取得
+- 確認用プレイヤーで4834、4500の順に2回送信
+- 初回4834、ベスト4500、プレイ回数2、参加者1を確認
+- 初回・ベストランキングの両方から同じ値を取得
+- 確認用の`score_runs`、`game_scores`、`players`を削除
+- 削除後に`tomatoku`の記録0件と`is_active=true`を確認
