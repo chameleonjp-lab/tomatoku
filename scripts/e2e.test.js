@@ -396,13 +396,16 @@ async function main() {
     (await page.locator("#result-stage-times li").count()) === 3,
     "ステージ別時間3件"
   );
-  ok(
-    (await page.textContent("#submit-state")).includes("記録は保存されません"),
-    "テスト中は記録を保存しない表示"
+  await page.waitForFunction(() =>
+    document.querySelector("#submit-state")?.textContent.includes("ランキングへ登録しました")
   );
-  ok(!(await page.isVisible("#result-detail-ranking-link")), "停止中の詳細ランキングを隠す");
-  ok(submitRequests === 0, "ランキング送信リクエストなし");
-  ok(rpcRequests === 0, "ランキング取得リクエストなし");
+  ok(
+    (await page.textContent("#submit-state")).includes("ベスト 45.00秒"),
+    "公式結果のランキング登録表示"
+  );
+  ok(await page.isVisible("#result-detail-ranking-link"), "詳細ランキングを表示");
+  ok(submitRequests === 1, "公式1プレイの送信リクエスト1件");
+  ok(rpcRequests === 3, "ホーム取得・公式送信・結果取得の3件");
 
   await page.click("#home-btn");
   await page.waitForSelector("#screen-home.active");
