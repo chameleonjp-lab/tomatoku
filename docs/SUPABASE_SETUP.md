@@ -6,17 +6,17 @@
 
 ## 1. 現在の状態
 
-確認日: 2026-07-18
+最終確認日: 2026-08-01
 
 - Supabaseプロジェクト: `chameleonJP-Lab`
 - プロジェクト参照ID: `mlpnjgezrnhdxsxolyzj`
 - `game_slug`: `tomatoku`
-- `tomatoku`の`public.games`登録: **未登録**
-- 実スコア送信: **未実施**
+- `tomatoku`の`public.games`登録: **登録済み・is_active=true**
+- 実スコア送信: **Publishable keyで確認済み**
 - 共有RPC定義の読み取り確認: **完了**
 - クライアント単体テスト: **完了**
 
-本番ランキングを汚さないため、公式3問と補正タイムが実装されるまでスコアを書き込まない。
+確認用に2件送信し、初回、ベスト、プレイ回数、参加人数を確認した。確認用データは削除し、`tomatoku`の記録0件へ戻している。
 
 ## 2. クライアント設定
 
@@ -27,11 +27,13 @@ export const RANKING_CONFIG = {
   supabaseUrl: "公開Supabase URL",
   supabasePublishableKey: "ブラウザ公開用Publishable key",
   gameSlug: "tomatoku",
-  clientVersion: "tomatooku-web-2.0.0-ranking-v1",
+  clientVersion: "tomatooku-web-2.4.0-ranking-restored-v1",
   timeoutMs: 8000,
   submitRpc: "submit_score",
   bestRankingRpc: "get_best_score_ranking",
   firstRankingRpc: "get_first_try_ranking",
+  rankingsEnabled: true,
+  submissionsEnabled: true,
 };
 ```
 
@@ -88,7 +90,7 @@ apikey: {SUPABASE_PUBLISHABLE_KEY}
   "p_display_name": "表示名",
   "p_game_slug": "tomatoku",
   "p_score": 4835,
-  "p_client_version": "tomatooku-web-2.0.0-ranking-v1"
+  "p_client_version": "tomatooku-web-2.4.0-ranking-restored-v1"
 }
 ```
 
@@ -100,7 +102,7 @@ apikey: {SUPABASE_PUBLISHABLE_KEY}
 - `p_score`がPostgreSQL integer範囲内の有限な非負整数
 - 同一play IDは1回だけ
 
-現行v1はランダム3問であり、条件が揃わないため送信しない。
+公式3問だけを送信する。ランダム練習は設定に関係なく送信しない。
 
 ## 4. ランキング取得RPC
 
@@ -155,9 +157,7 @@ not_configured  URLまたはPublishable key不足
 
 ## 5. `public.games`登録
 
-2026-07-18時点で`tomatoku`は未登録。
-
-登録は、公式問題と補正タイムが実装され、次の値がコードと一致した後に行う。
+2026年8月1日に`tomatoku`を次の値で再登録した。
 
 ```text
 game_slug: tomatoku
@@ -171,13 +171,14 @@ score_decimals: 2
 score_label: 補正タイム
 first_score_label: 初回タイム
 best_score_label: ベストタイム
+release_date: 2026-07-19
+display_order: 34
+is_active: true
 ```
 
-公開前にrelease date、display order、description、share textも確定する。
+descriptionとshare textもGitHub Pagesの公開先に合わせて登録済みである。
 
 ## 6. 検証方針
-
-この段階ではモックによる単体テストだけを行う。
 
 確認済み:
 
@@ -189,14 +190,16 @@ best_score_label: ベストタイム
 - play ID単位の二重送信防止
 - 初回・ベスト取得
 - 0件、HTTPエラー、形式不正、未設定、タイムアウト
+- Publishable keyによるゲーム設定取得
+- 4834、4500の順に2回送信
+- 初回4834、ベスト4500、プレイ回数2
+- 初回・ベストランキング取得
+- 合計プレイ2、参加人数1
+- 確認用データ削除後の記録0件
 
 未確認:
 
-- 実ブラウザからのRPC疎通
-- 本番DBへのスコア保存
-- 初回・ベスト更新の実データ確認
-- `tomatoku`の`public.games`登録
 - 実験場トップ・詳細ランキングへの反映
 - iPhone実機通信
 
-実通信確認は、公式3問と補正タイムを実装し、テスト用表示名と削除手順を決めてから行う。
+GitHub Pages反映後にiPhone Safariで公式3問を完了し、実験場トップ、詳細ランキング、送信結果を確認する。
