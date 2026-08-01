@@ -24,6 +24,14 @@ import {
 } from "./ranking.js";
 import { playTutorial, stopTutorial } from "./tutorial.js";
 import { createPracticeStageBankLoader } from "./practice-stage-bank.js";
+import {
+  isSoundEnabled,
+  isSoundSupported,
+  playCorrectSound,
+  playIncorrectSound,
+  setSoundEnabled,
+  unlockSound,
+} from "./sound.js";
 
 const PLAYER_KEY = "tomatoku.playerName";
 const GAME_URL = "https://chameleonjp-lab.github.io/tomatooku/";
@@ -150,6 +158,26 @@ function syncRankingAvailability() {
   }
 }
 
+function syncSoundControl() {
+  const button = $("#sound-toggle");
+  const label = $("#sound-toggle-label");
+  const icon = $("#sound-toggle-icon");
+  if (!button || !label || !icon) return;
+
+  const supported = isSoundSupported();
+  const enabled = supported && isSoundEnabled();
+  button.disabled = !supported;
+  button.setAttribute("aria-checked", String(enabled));
+  button.setAttribute(
+    "aria-label",
+    supported
+      ? `効果音を${enabled ? "なし" : "あり"}にする`
+      : "この端末では効果音を利用できません"
+  );
+  label.textContent = supported ? (enabled ? "あり" : "なし") : "非対応";
+  icon.textContent = enabled ? "🔊" : "🔇";
+}
+
 function setHomePreparing(preparing, message = "練習問題を準備しています…") {
   const home = $("#screen-home");
   const card = $("#home-card");
@@ -185,6 +213,13 @@ function cancelPendingStart(message = "") {
 function initHome() {
   const input = $("#player-name");
   input.value = loadPlayerName();
+  syncSoundControl();
+
+  $("#sound-toggle").addEventListener("click", () => {
+    const enabled = setSoundEnabled(!isSoundEnabled());
+    syncSoundControl();
+    if (enabled) playCorrectSound();
+  });
 
   $("#start-official-btn").addEventListener("click", () => {
     void onStart(GAME_MODE.OFFICIAL);
@@ -207,7 +242,10 @@ function initHome() {
     closeModal("howto-modal");
     openTutorial();
   });
-  $("#tutorial-replay").addEventListener("click", playTutorial);
+  $("#tutorial-replay").addEventListener("click", () => {
+    unlockSound();
+    playTutorial();
+  });
   $("#countdown-cancel-btn").addEventListener("click", () => {
     cancelActivePlay({ goHome: true });
   });
@@ -237,6 +275,7 @@ function closeModal(id) {
 }
 
 function openTutorial() {
+  unlockSound();
   openModal("tutorial-modal");
   playTutorial();
 }
@@ -305,6 +344,7 @@ async function startNamedGame(name, mode) {
 }
 
 async function onStart(mode) {
+  unlockSound();
   const input = $("#player-name");
   const name = normalizeDisplayName(input.value);
   const error = $("#name-error");
@@ -423,6 +463,7 @@ function runCountdown(playId) {
     }
 
     value.textContent = step.label;
+    value.classList.toggle("is-start-label", step.label === "スタート");
     index++;
     const timerId = setTimeout(showNext, step.durationMs);
     countdownTimerIds.push(timerId);
@@ -531,6 +572,7 @@ function onCellTap(r, c) {
 
   if (result.type === "mistake") {
     session.recordMistake();
+    playIncorrectSound();
     flashMistake(cell);
     updateHud(monotonicNow());
     return;
@@ -540,7 +582,11 @@ function onCellTap(r, c) {
   renderBoard();
   updateHud(monotonicNow());
 
-  if (result.type === "place" && state.cleared) onStageClear();
+  if (result.type === "place" && state.cleared) {
+    onStageClear();
+  } else if (result.type === "place") {
+    playCorrectSound();
+  }
 }
 
 function flashMistake(cell) {
@@ -598,6 +644,7 @@ function onStageClear() {
 
   const playId = session.playId;
   session.finishStage(monotonicNow());
+  playCorrectSound();
   setPhase(PHASE.STAGE_TRANSITION);
   setBoardInputEnabled(false);
   stopTimer();
@@ -868,6 +915,7 @@ function initGameControls() {
 
 function initResultControls() {
   $("#again-btn").addEventListener("click", () => {
+    unlockSound();
     const name = (session && session.playerName) || loadPlayerName();
     const mode = (session && session.mode) || GAME_MODE.OFFICIAL;
     void startNamedGame(name, mode);

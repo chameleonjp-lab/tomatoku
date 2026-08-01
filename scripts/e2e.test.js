@@ -209,6 +209,27 @@ async function main() {
     ),
     "320pxで横スクロールなし"
   );
+  ok(
+    (await page.getAttribute("#sound-toggle", "aria-checked")) === "false" &&
+      (await page.textContent("#sound-toggle-label")).trim() === "なし",
+    "効果音は初回なし"
+  );
+  await page.click("#sound-toggle");
+  ok(
+    (await page.getAttribute("#sound-toggle", "aria-checked")) === "true" &&
+      (await page.textContent("#sound-toggle-label")).trim() === "あり",
+    "効果音を任意でありに変更"
+  );
+  ok(
+    (await page.evaluate(() => localStorage.getItem("tomatoku.soundEnabled"))) ===
+      "true",
+    "効果音の選択を端末へ保存"
+  );
+  await page.click("#sound-toggle");
+  ok(
+    (await page.getAttribute("#sound-toggle", "aria-checked")) === "false",
+    "効果音をなしへ戻せる"
+  );
 
   await page.click("#howto-btn");
   await page.waitForSelector("#howto-modal.open");
@@ -281,6 +302,45 @@ async function main() {
     new Set(tutorialAreas.areaColors).size === 4,
     `チュートリアルの4エリアを別の色で表示 (${tutorialAreas.areaColors.join(", ")})`
   );
+  const tutorialMarkerLayout = await page.$eval(
+    "#tutorial-board .tcell",
+    (cell) => {
+      cell.classList.add("filled", "mark-ok");
+      const tomato = cell.querySelector(".tomato");
+      const marker = cell.querySelector(".tmark");
+      const tomatoRect = tomato.getBoundingClientRect();
+      const markerRect = marker.getBoundingClientRect();
+      const result = {
+        markerFontSize: Number.parseFloat(getComputedStyle(marker).fontSize),
+        tomatoFontSize: Number.parseFloat(getComputedStyle(cell).fontSize),
+        centerDifferenceX: Math.abs(
+          markerRect.left + markerRect.width / 2 -
+            (tomatoRect.left + tomatoRect.width / 2)
+        ),
+        centerDifferenceY: Math.abs(
+          markerRect.top + markerRect.height / 2 -
+            (tomatoRect.top + tomatoRect.height / 2)
+        ),
+        okContent: getComputedStyle(marker, "::after").content,
+      };
+      cell.classList.remove("mark-ok");
+      cell.classList.add("mark-bad");
+      result.badContent = getComputedStyle(marker, "::after").content;
+      cell.classList.remove("filled", "mark-bad");
+      return result;
+    }
+  );
+  ok(
+    tutorialMarkerLayout.markerFontSize >= tutorialMarkerLayout.tomatoFontSize,
+    "チュートリアルの✓／✗はトマト以上の大きさ"
+  );
+  ok(
+    tutorialMarkerLayout.centerDifferenceX <= 2 &&
+      tutorialMarkerLayout.centerDifferenceY <= 2,
+    "チュートリアルの✓／✗をトマト中央に重ねる"
+  );
+  ok(tutorialMarkerLayout.okContent.includes("✓"), "正解は✓で表示");
+  ok(tutorialMarkerLayout.badContent.includes("✗"), "不正解は✗で表示");
   await page.waitForTimeout(3000);
   ok(
     (await page.textContent("#tutorial-caption")).includes("4×4"),
@@ -313,8 +373,24 @@ async function main() {
   await page.click("#start-official-btn");
   await page.waitForSelector("#screen-countdown.active");
   ok((await page.textContent("#countdown-value")).trim() === "3", "3から開始");
+  const countdownNumberFontSize = await page.$eval(
+    "#countdown-value",
+    (element) => Number.parseFloat(getComputedStyle(element).fontSize)
+  );
   ok((await page.textContent("#countdown-mode")).includes("公式"), "公式表示");
   ok(!(await page.isVisible("#screen-game")), "カウントダウン中は盤面非表示");
+
+  await page.waitForFunction(
+    () => document.querySelector("#countdown-value")?.textContent.trim() === "スタート"
+  );
+  const countdownStartLayout = await page.$eval("#countdown-value", (element) => ({
+    fontSize: Number.parseFloat(getComputedStyle(element).fontSize),
+    fits: element.scrollWidth <= element.clientWidth,
+    hasLabelClass: element.classList.contains("is-start-label"),
+  }));
+  ok(countdownStartLayout.hasLabelClass, "スタート専用の文字サイズを適用");
+  ok(countdownStartLayout.fontSize < countdownNumberFontSize, "スタートを円内に合う大きさへ調整");
+  ok(countdownStartLayout.fits, "スタートの4文字が円からはみ出さない");
 
   await waitForPlaying(page);
   ok(
