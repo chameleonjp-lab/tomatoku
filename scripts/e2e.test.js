@@ -554,6 +554,10 @@ async function main() {
     "補正タイム小数2桁"
   );
   ok(
+    /^\d+:\d{2}\.\d$/.test((await page.textContent("#result-time")).trim()),
+    "結果画面には実時間を残す"
+  );
+  ok(
     (await page.locator("#result-stage-times li").count()) === 3,
     "ステージ別時間3件"
   );
