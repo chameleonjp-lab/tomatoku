@@ -885,8 +885,8 @@ function goToResult(playId) {
   });
 
   const shareMessage =
-    `トマトオク ${modeLabel(completedSession.mode)}で補正タイム${formatCentiseconds(adjusted)}秒!` +
-    `\n実時間${formatTime(breakdown.elapsedMs)} / 誤タップ${breakdown.mistakeCount} / ヒント${breakdown.hintCount}` +
+    `トマトオク ${modeLabel(completedSession.mode)}で補正タイム${formatCentiseconds(adjusted)}秒！` +
+    `\n誤タップ${breakdown.mistakeCount} / ヒント${breakdown.hintCount}` +
     `\n${gameUrl()}`;
   $("#result-share-btn").onclick = () => shareText(shareMessage);
 }
