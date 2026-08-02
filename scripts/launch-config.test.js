@@ -7,6 +7,7 @@ import { RANKING_CONFIG } from "../src/ranking-config.js";
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const root = path.resolve(__dirname, "..");
 const html = fs.readFileSync(path.join(root, "index.html"), "utf8");
+const main = fs.readFileSync(path.join(root, "src/main.js"), "utf8");
 
 assert.equal(RANKING_CONFIG.gameSlug, "tomatoku_competition_v1");
 assert.doesNotMatch(html, /gameSlug:\s*["']tomatoku["']/);
@@ -39,8 +40,16 @@ assert.match(html, /id="lab-link"/);
 assert.match(html, /id="detail-ranking-link"/);
 assert.match(html, /id="result-lab-link"/);
 assert.match(html, /id="result-detail-ranking-link"/);
-assert.equal((html.match(/data-ranking-only/g) || []).length, 4);
+assert.equal((html.match(/data-ranking-only/g) || []).length, 3);
 assert.match(html, /id="detail-ranking-link"[\s\S]*data-ranking-only[\s\S]*hidden/);
+assert.doesNotMatch(html, /id="home-ranking"/);
+assert.match(
+  html,
+  /id="screen-result"[\s\S]*公式ランキング 上位10名（補正タイム・短い順）[\s\S]*id="result-ranking"/
+);
+assert.doesNotMatch(main, /loadRankingInto\("#home-ranking"\)/);
+assert.match(main, /loadRankingInto\("#result-ranking"\)/);
+assert.match(main, /fetchBestRanking\(10\)/);
 assert.match(
   html,
   /公式プレイでは、プレイヤー名、操作記録、計測時間、ゲーム名、ゲームの版を送信し、サーバーで補正タイムを確認します/

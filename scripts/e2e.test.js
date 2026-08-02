@@ -174,6 +174,7 @@ async function main() {
       body.p_game_slug === "tomatoku_competition_v1",
       "ランキング取得は新世代slugだけを使う"
     );
+    ok(body.p_limit === 10, "結果ランキングは上位10名を取得");
     await route.fulfill({
       status: 200,
       contentType: "application/json",
@@ -228,6 +229,11 @@ async function main() {
   ok(await page.isVisible("#screen-home"), "ホーム表示");
   ok(await page.isVisible("#start-official-btn"), "公式開始ボタン");
   ok(await page.isVisible("#start-practice-btn"), "練習開始ボタン");
+  ok(
+    (await page.locator("#home-ranking").count()) === 0,
+    "ホームにランキング一覧を表示しない"
+  );
+  ok(rpcRequests === 0, "ホームではランキングを取得しない");
   ok(
     await page.evaluate(() => !document.body.innerText.includes("84")),
     "利用者向け画面に問題群の総数を表示しない"
@@ -568,10 +574,20 @@ async function main() {
     (await page.textContent("#submit-state")).includes("ベスト "),
     "公式結果のランキング登録表示"
   );
+  await page.waitForFunction(() =>
+    document
+      .querySelector("#result-ranking")
+      ?.textContent.includes("まだランキングがありません")
+  );
+  ok(await page.isVisible("#result-ranking"), "結果画面下部にランキングを表示");
+  ok(
+    (await page.locator("#result-ranking .rank-row").count()) <= 10,
+    "結果ランキングは上位10名まで"
+  );
   ok(await page.isVisible("#result-detail-ranking-link"), "詳細ランキングを表示");
   ok(submitRequests === 1, "公式1プレイの送信リクエスト1件");
   ok(competitionRequests === 3, "公式prepare・begin・finishの3件");
-  ok(rpcRequests === 2, "ホーム取得・結果取得の2件");
+  ok(rpcRequests === 1, "ランキング取得は結果画面の1件だけ");
 
   await page.click("#result-share-btn");
   await page.waitForFunction(() => Boolean(window.__lastShareData?.text));
