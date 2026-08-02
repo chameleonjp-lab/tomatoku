@@ -30,13 +30,15 @@ assert.ok(spec.includes(PRACTICE_STAGE_BANK_FEATURE.primaryBankId));
 assert.ok(spec.includes(PRACTICE_STAGE_BANK_FEATURE.fallbackBankId));
 assert.doesNotMatch(spec, /public\.games.*未完了/);
 assert.match(spec, /旧版の実プレイ1件/);
-assert.match(spec, /決定前は公開しない/);
+assert.match(spec, /accepting_runs=false/);
+assert.match(spec, /操作記録から再計算/);
 
 assert.match(requirements, /文書種別: 現行製品要件/);
 assert.match(requirements, /公式と練習が同じ承認済み問題バンク/);
-assert.match(requirements, /公式は難易度別に3問をランダム選出/);
+assert.match(requirements, /サーバーが公平抽選表/);
 assert.match(requirements, /公式の読込失敗時は別問題へ切り替えず開始を止める/);
-assert.match(requirements, /ランキング取得・公式送信再開/);
+assert.match(requirements, /旧ランキング一時停止/);
+assert.match(requirements, /同一操作記録の完了再送は保存済み結果/);
 assert.match(requirements, /チュートリアル.*0\.5倍速/);
 assert.ok(requirements.includes(PRACTICE_STAGE_BANK_FEATURE.primaryBankId));
 assert.ok(requirements.includes(PRACTICE_STAGE_BANK_FEATURE.fallbackBankId));
@@ -46,10 +48,10 @@ assert.doesNotMatch(
 );
 
 assert.ok(plan.includes(ACTIVE_PRACTICE_STAGE_BANK_ID));
-assert.match(plan, /ランダム練習primary: 公式と同じ完成バンク/);
-assert.match(plan, /公式primary:.*難易度1→2→3をランダム選出/);
+assert.match(plan, /ランダム練習primary: 公式と同じ公平抽選表/);
+assert.match(plan, /公式primary:.*公平抽選済み/);
 assert.match(plan, /active-official-and-practice/);
-assert.match(plan, /tomatooku-web-2\.6\.0-random-official-v1/);
+assert.ok(plan.includes(RANKING_CONFIG.clientVersion));
 assert.match(plan, /REVIEW EXECUTION COMPLETED/);
 assert.match(plan, /rankingsEnabled=true/);
 assert.match(plan, /submissionsEnabled=true/);
@@ -69,6 +71,8 @@ assert.match(finalBankDoc, /final\.rankingEligible = true/);
 assert.match(finalBankDoc, /公式は開始を止める/);
 assert.match(releaseCheck, /公式bank \| `candidate-v2-variable-4-6-final`/);
 assert.match(releaseCheck, /公式への`legacy-v1` fallback混入/);
+assert.match(releaseCheck, /同一内容の再送は保存済み結果/);
+assert.doesNotMatch(releaseCheck, /完了済みとして拒否/);
 assert.match(historicalPracticeRollout, /現在の実装契約ではない/);
 
 const publicHtml = read("index.html");
@@ -76,12 +80,12 @@ assert.doesNotMatch(publicHtml, /84問/);
 assert.doesNotMatch(publicHtml, /固定3問|全員同じ3問/);
 assert.match(publicHtml, /問題はランダムに選ばれます/);
 
-assert.match(supabaseSetup, /public\.games`登録: \*\*登録済み・is_active=true\*\*/);
-assert.match(supabaseSetup, /実スコア送信: \*\*Publishable keyで確認済み\*\*/);
+assert.match(supabaseSetup, /旧ランキング`tomatoku`は`is_active=false`/);
+assert.match(supabaseSetup, /tomatoku_competition_v1/);
 assert.ok(supabaseSetup.includes(RANKING_CONFIG.clientVersion));
 assert.match(supabaseSetup, /display_order: 34/);
-assert.doesNotMatch(supabaseSetup, /tomatoku.*未登録/);
-assert.doesNotMatch(supabaseSetup, /実スコア送信: \*\*未実施\*\*/);
+assert.match(supabaseSetup, /操作記録から再計算/);
+assert.match(supabaseSetup, /同じ確率/);
 
 assert.match(pagesDeploy, /Supabaseへ再登録済みの`game_url`/);
 assert.doesNotMatch(pagesDeploy, /将来Supabaseへ再登録/);

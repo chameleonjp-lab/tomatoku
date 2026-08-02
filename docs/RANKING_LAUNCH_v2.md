@@ -1,10 +1,12 @@
-# トマトオク v2 ランキング再開確認
+# トマトオク v2 ランキング運用記録
 
 - 初回実施日: 2026-07-19
 - 再開実施日: 2026-08-01
 - 対象リポジトリ: `chameleonjp-lab/tomatooku`
 - `game_slug`: `tomatoku`
 - Supabaseプロジェクト: `chameleonJP-Lab`
+
+> 1〜12節は2026年8月1日の旧`tomatoku`再開履歴であり、現行の送信契約ではない。2026年8月2日の監査後は§13を正本とする。
 
 ## 1. 目的
 
@@ -225,3 +227,15 @@ where game_slug = 'tomatoku';
 - 初回・ベストランキングの両方から同じ値を取得
 - 確認用の`score_runs`、`game_scores`、`players`を削除
 - 削除後に`tomatoku`の記録0件と`is_active=true`を確認
+
+## 13. 2026年8月2日の一時停止と修正版
+
+- 旧`tomatoku`は`is_active=false`で一時停止済み
+- 固定出題版の実プレイ1件は削除せず履歴として保持
+- 修正版は`tomatoku_competition_v1`へ世代分離
+- client versionは`tomatooku-web-3.0.0-verified-competition-v1`
+- 公式は`tomatoku-competition` Edge Functionのprepare/begin/finishを使う
+- ブラウザはスコアを自己申告せず、サーバーが一度限りrunと操作記録を検証して補正タイムを再計算
+- 旧`submit_score`と`submit_score_with_metadata`から新slugへの登録はDB側で拒否
+- 公平抽選表は各問題を厳密に同率で扱い、組の難しさ指標を最大/最小1.08以内にする
+- 新slugの`is_active`とrun受付は、Draft PR、CI、独立レビュー、人間の再開承認まで無効

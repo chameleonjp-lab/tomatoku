@@ -1,35 +1,32 @@
 # トマトオク Supabase連携
 
-この文書は、カメレオンJPの実験場で使用している**共有Supabase基盤への接続契約**を記録する。
-
-> 旧版に記載していた独自`games` / `scores`テーブルやゲーム専用RPCの作成SQLは使用しない。共有Supabaseの`submit_score`を`create or replace`で置き換えてはいけない。
-
-## 1. 現在の状態
-
-最終確認日: 2026-08-01
-
+- 文書種別: 現行接続・停止手順
+- 最終更新日: 2026-08-02
 - Supabaseプロジェクト: `chameleonJP-Lab`
 - プロジェクト参照ID: `mlpnjgezrnhdxsxolyzj`
-- `game_slug`: `tomatoku`
-- `tomatoku`の`public.games`登録: **登録済み・is_active=true**
-- 実スコア送信: **Publishable keyで確認済み**
-- 共有RPC定義の読み取り確認: **完了**
-- クライアント単体テスト: **完了**
 
-確認用に2件送信し、初回、ベスト、プレイ回数、参加人数を確認した。確認用データは削除し、`tomatoku`の記録0件へ戻している。
+## 現在の状態
 
-## 2. クライアント設定
+旧ランキング`tomatoku`は`is_active=false`で一時停止している。固定出題版の実プレイ1件は履歴として保持し、削除しない。
 
-ブラウザ公開可能な値は`src/ranking-config.js`へ集約する。
+修正版は別世代`tomatoku_competition_v1`を使う。DB移行直後は次の二重ゲートを閉じ、明示的な公開承認まで受け付けない。
+
+実験場での表示順は旧版を継承し`display_order: 34`とする。
+
+```text
+public.games.is_active = false
+private.tomatoku_competition_config.accepting_runs = false
+```
+
+設定:
 
 ```js
 export const RANKING_CONFIG = {
   supabaseUrl: "公開Supabase URL",
   supabasePublishableKey: "ブラウザ公開用Publishable key",
-  gameSlug: "tomatoku",
-  clientVersion: "tomatooku-web-2.6.0-random-official-v1",
-  timeoutMs: 8000,
-  submitRpc: "submit_score",
+  gameSlug: "tomatoku_competition_v1",
+  clientVersion: "tomatooku-web-3.0.0-verified-competition-v1",
+  competitionFunction: "tomatoku-competition",
   bestRankingRpc: "get_best_score_ranking",
   firstRankingRpc: "get_first_try_ranking",
   rankingsEnabled: true,
@@ -37,169 +34,82 @@ export const RANKING_CONFIG = {
 };
 ```
 
-禁止事項:
+## 公式プレイの送信契約
 
-- secret key
-- service role key
-- `Authorization: Bearer {Publishable key}`
-- テーブルへの直接INSERT
-- ゲーム専用RPCの新設
-- 共有RPCの置き換え
-- キー実値をREADME、仕様書、PR本文、完了報告へ複製すること
-
-Publishable keyは`apikey`ヘッダーだけに設定する。
-
-## 3. スコア送信RPC
-
-実DBで確認した定義:
+ブラウザから共通`submit_score`へスコアを直接送らない。公式プレイはEdge Functionを経由する。
 
 ```text
-submit_score(
-  p_display_name text,
-  p_game_slug text,
-  p_score integer,
-  p_client_version text default ''
-)
+POST /functions/v1/tomatoku-competition
+action = prepare | begin | finish
 ```
 
-返却列:
+1. `prepare`: 表示名を正規化し、サーバーが一度限りのrun tokenと公平抽選済み3問を内部で確保する。ブラウザへ問題IDはまだ返さない。
+2. `begin`: 盤面を操作可能にする直前にサーバー開始時刻を固定し、この時点で3問のIDを返す。
+3. `finish`: run token、操作記録、クライアント計測時間を送る。自己申告のスコアは送らない。
+4. Edge Functionがサーバー保管の問題を使い、操作記録から再計算して誤タップ数、ヒント数、補正タイムを確定する。
+5. 一度完了したtoken、世代不一致、問題不一致、時間矛盾、未クリアの操作記録は拒否する。
+
+サーバー観測時間との差が負または15秒超なら拒否する。低速回線による往復遅延は最大15秒まで受け付けるが、差が1秒を超える記録、60秒未満の記録、またはベスト・初回・回数のいずれかで公開上位10位へ入る可能性がある記録は自動で通常ランキングへ載せず確認待ちにする。確認待ちはservice role専用の`tomatoku_review_run_internal`で承認または失格とし、承認済みrunだけから初回・ベスト・回数を再集計する。
+
+ブラウザはPublishable keyを`apikey`ヘッダーだけに設定する。secret/service role keyと`Authorization: Bearer {Publishable key}`はブラウザへ置かない。Edge Functionはサーバー側secretを使い、一般利用者が実行できない内部RPCだけを呼ぶ。
+
+## DB保護
+
+- `public.games.submission_mode='verified'`のゲームは、検証済みrunを示すトランザクション内フラグがない限り`score_runs`と`game_scores`への書き込みをtriggerで拒否する。
+- そのため、既存`submit_score`、`submit_score_with_metadata`、テーブル直接書き込みから新世代のランキングへ登録できない。
+- 内部run関数と`private`スキーマは`PUBLIC`、`anon`、`authenticated`から剥奪し、`service_role`だけに許可する。
+- 公式runは一度だけ完了でき、期限切れrunはランキングへ反映しない。
+- 同じtokenと同じ操作記録の完了再送は保存済み結果を返し、二重登録しない。
+- 接続元はサーバー内のsecretをsaltにした不可逆hashだけを短期rate limitへ使い、生の接続元を保存しない。表示名、接続元hash、全体、同時runの各上限を設ける。
+
+練習はEdge FunctionもランキングRPCも呼ばない。
+
+## ランキング取得
+
+取得は既存の読み取りRPCを新しいslugで使う。
 
 ```text
-accepted boolean
-result_normalized_name text
-result_display_name text
-result_first_score integer
-result_best_score integer
-result_play_count integer
-is_first_play boolean
-is_new_best boolean
+get_best_score_ranking('tomatoku_competition_v1', limit)
+get_first_try_ranking('tomatoku_competition_v1', limit)
 ```
 
-REST呼び出し:
+旧`tomatoku`の記録と新世代はslugで分離される。
 
-```text
-POST {SUPABASE_URL}/rest/v1/rpc/submit_score
-Content-Type: application/json
-apikey: {SUPABASE_PUBLISHABLE_KEY}
-```
+## 公平抽選
 
-本文:
+- 問題バンク: `candidate-v2-variable-4-6-final`
+- 抽選表: `balanced-official-draw-v1`
+- 8 deck × 28組 = 224組
+- 各deckで各難易度の全28問を1回ずつ使用
+- 全体で各問題の出現回数は8回、周辺確率は厳密に`1/28`
+- 各難易度の全問題は同じ確率で出現する
+- 組の難しさ指標は1258〜1355、最大/最小は約1.0772で上限1.08以内
 
-```json
-{
-  "p_display_name": "表示名",
-  "p_game_slug": "tomatoku",
-  "p_score": 4835,
-  "p_client_version": "tomatooku-web-2.6.0-random-official-v1"
-}
-```
+問題総数と内部抽選表は利用者画面に表示しない。
 
-送信条件:
+## 適用と再開
 
-- `mode === "official"`
-- 空でないplay ID
-- 正規化後の表示名が空でない
-- `p_score`がPostgreSQL integer範囲内の有限な非負整数
-- 同一play IDは1回だけ
+DB変更は`supabase/migrations/20260802000000_tomatoku_verified_competition.sql`、Edge Functionは`supabase/functions/tomatoku-competition/`を正本とする。
 
-公式モードだけを送信する。ランダム練習は設定に関係なく送信しない。
+適用後も停止を維持し、次がすべて合格してから別の明示承認で再開する。
 
-## 4. ランキング取得RPC
+- 旧2経路から新slugへの登録が拒否される
+- Edge Functionのprepare/begin/finish実疎通
+- 一度限りtokenと操作再生の拒否試験
+- 確認待ちの承認・失格・再集計と権限外拒否
+- 正常runの初回・ベスト反映
+- 練習の送信0件
+- ChromiumとWebKitの全画面検査
+- テストデータ削除後に新世代0件
+- 独立レビュー
 
-### 最高記録
+再開は`accepting_runs=true`と新slugの`is_active=true`を同じ承認作業で行う。旧slugは非表示のまま保持する。
 
-```text
-get_best_score_ranking(
-  p_game_slug text,
-  p_limit integer default 100
-)
-```
+## 禁止事項
 
-### 初回記録
-
-```text
-get_first_try_ranking(
-  p_game_slug text,
-  p_limit integer default 100
-)
-```
-
-両関数の返却列:
-
-```text
-rank_no bigint
-display_name text
-first_score integer
-best_score integer
-play_count integer
-updated_at timestamptz
-```
-
-本文:
-
-```json
-{
-  "p_game_slug": "tomatoku",
-  "p_limit": 10
-}
-```
-
-クライアントは次を区別する。
-
-```text
-ok              1件以上
-empty           正常応答・0件
-error           HTTP、タイムアウト、JSON・形式不正
-not_configured  URLまたはPublishable key不足
-```
-
-通信タイムアウトは`AbortController`で実際のfetchを中止する。
-
-## 5. `public.games`登録
-
-2026年8月1日に`tomatoku`を次の値で再登録した。
-
-```text
-game_slug: tomatoku
-title: トマトオク
-game_url: https://chameleonjp-lab.github.io/tomatooku/
-top_ranking_type: best
-score_order: asc
-score_unit: 秒
-score_scale: 100
-score_decimals: 2
-score_label: 補正タイム
-first_score_label: 初回タイム
-best_score_label: ベストタイム
-release_date: 2026-07-19
-display_order: 34
-is_active: true
-```
-
-descriptionとshare textもGitHub Pagesの公開先に合わせて登録済みである。
-
-## 6. 検証方針
-
-確認済み:
-
-- 共通RPC名と引数
-- 返却列のマッピング
-- `apikey`のみを使用
-- 送信本文4項目
-- 公式モード以外は送信しない
-- play ID単位の二重送信防止
-- 初回・ベスト取得
-- 0件、HTTPエラー、形式不正、未設定、タイムアウト
-- Publishable keyによるゲーム設定取得
-- 4834、4500の順に2回送信
-- 初回4834、ベスト4500、プレイ回数2
-- 初回・ベストランキング取得
-- 合計プレイ2、参加人数1
-- 確認用データ削除後の記録0件
-
-未確認:
-
-- 実験場トップ・詳細ランキングへの反映
-- iPhone実機通信
-
-GitHub Pages反映後にiPhone Safariで公式モードを完了し、実験場トップ、詳細ランキング、送信結果を確認する。
+- key実値を文書、PR本文、ログへ複製する
+- 共有`submit_score`をゲーム専用定義へ置き換える
+- ブラウザへsecret/service role keyを置く
+- 未検証の自己申告スコアを新世代へ登録する
+- 旧実プレイを無断削除する
+- Draft PRのマージ前に再開する

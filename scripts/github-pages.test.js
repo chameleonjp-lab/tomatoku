@@ -20,6 +20,7 @@ assert.deepEqual(GITHUB_PAGES_PUBLIC_ENTRIES, [
   "index.html",
   "src",
   "generated/variable-stage-bank-v2.json",
+  "generated/balanced-official-draw-v1.json",
 ]);
 
 try {
@@ -29,6 +30,7 @@ try {
   assert.ok(files.includes("src/styles.css"));
   assert.ok(files.includes("src/accessibility.css"));
   assert.ok(files.includes("generated/variable-stage-bank-v2.json"));
+  assert.ok(files.includes("generated/balanced-official-draw-v1.json"));
   assert.deepEqual(verifyPublicReferences(OUTPUT), []);
 
   for (const forbiddenPrefix of [

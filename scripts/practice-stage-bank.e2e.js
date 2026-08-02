@@ -11,6 +11,13 @@ import {
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const PORT = 8103;
 const N = 5;
+const competitionDraw = JSON.parse(
+  fs.readFileSync(
+    path.join(ROOT, "generated/balanced-official-draw-v1.json"),
+    "utf8"
+  )
+);
+const officialStageIds = competitionDraw.decks[0].slots[0].slice(0, 3);
 const MIME = {
   ".html": "text/html",
   ".js": "text/javascript",
@@ -149,6 +156,21 @@ async function main() {
         finalBankRequests++;
         await route.continue();
       });
+      await page.route("**/functions/v1/tomatoku-competition", async (route) => {
+        const body = route.request().postDataJSON();
+        await route.fulfill({
+          status: 200,
+          contentType: "application/json",
+          body: JSON.stringify(
+            body.action === "prepare"
+              ? {
+                  accepted: true,
+                  runToken: "practice-bank-e2e-run",
+                }
+              : { accepted: true, stageIds: officialStageIds }
+          ),
+        });
+      });
       await page.goto(`http://127.0.0.1:${PORT}/index.html`);
       await page.fill("#player-name", "公式隔離");
       await page.click("#start-official-btn");
@@ -189,7 +211,7 @@ async function main() {
     {
       const { context, page } = await createMobilePage(browser);
       let submitRequests = 0;
-      await page.route("**/rest/v1/rpc/submit_score", async (route) => {
+      await page.route("**/functions/v1/tomatoku-competition", async (route) => {
         submitRequests++;
         await route.fulfill({ status: 200, contentType: "application/json", body: "{}" });
       });

@@ -15,6 +15,8 @@ import {
 } from "./game.js";
 import {
   submitScore,
+  prepareOfficialRun,
+  beginOfficialRun,
   fetchBestRanking,
   resetSubmission,
   isConfigured,
@@ -56,6 +58,7 @@ const $ = (selector) => document.querySelector(selector);
 
 let phase = PHASE.HOME;
 let session = null;
+let pendingPlay = null;
 let activePlayId = null;
 let cells = [];
 let timerRafId = null;
@@ -67,6 +70,7 @@ let lastHudPaintAt = 0;
 const ensureRandomStageBank = createRandomStageBankLoader();
 let startInFlight = false;
 let startRequestId = 0;
+let officialSubmissionPromise = null;
 const rankingRequestIds = new Map();
 
 function gameUrl() {
@@ -124,10 +128,14 @@ function setPhase(nextPhase) {
 function isActivePlay(playId) {
   return Boolean(
     playId &&
-      session &&
       activePlayId === playId &&
-      session.playId === playId
+      (session?.playId === playId || pendingPlay?.playId === playId)
   );
+}
+
+function createPendingPlayId() {
+  if (globalThis.crypto?.randomUUID) return globalThis.crypto.randomUUID();
+  return `pending-${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`;
 }
 
 function loadPlayerName() {
@@ -313,6 +321,13 @@ async function startNamedGame(name, mode) {
     if (mode === GAME_MODE.OFFICIAL && randomBank.fallback) {
       throw new Error("公式用の問題を読み込めませんでした");
     }
+    const officialRun =
+      mode === GAME_MODE.OFFICIAL
+        ? await prepareOfficialRun({ playerName: name })
+        : null;
+    if (mode === GAME_MODE.OFFICIAL && officialRun?.status !== "ok") {
+      throw new Error("公式プレイ番号を発行できませんでした");
+    }
 
     if (
       requestId !== startRequestId ||
@@ -326,7 +341,7 @@ async function startNamedGame(name, mode) {
     startInFlight = false;
     setHomePreparing(false);
     if (error) error.textContent = "";
-    beginCountdown(name, mode, randomBank);
+    beginCountdown(name, mode, randomBank, officialRun);
     if (mode === GAME_MODE.PRACTICE && randomBank.fallback) {
       setTimeout(() => showToast("従来の練習問題で開始します"), 0);
     }
@@ -409,6 +424,8 @@ function cancelActivePlay({ goHome = true } = {}) {
 
   activePlayId = null;
   session = null;
+  pendingPlay = null;
+  officialSubmissionPromise = null;
   cells = [];
 
   const board = $("#board");
@@ -430,17 +447,30 @@ function cancelActivePlay({ goHome = true } = {}) {
   }
 }
 
-function beginCountdown(name, mode, randomBank = null) {
+function beginCountdown(name, mode, randomBank = null, officialRun = null) {
   cancelActivePlay({ goHome: false });
   resetSubmission();
 
-  session = new GameSession(name, Math.random, {
-    mode,
-    stageBank: randomBank?.stages,
-    stageBankId: randomBank?.bankId,
-    stageBankFallback: randomBank?.fallback,
-  });
-  activePlayId = session.playId;
+  if (mode === GAME_MODE.OFFICIAL) {
+    const playId = createPendingPlayId();
+    pendingPlay = {
+      playId,
+      name,
+      mode,
+      randomBank,
+      runToken: officialRun?.runToken,
+    };
+    activePlayId = playId;
+  } else {
+    session = new GameSession(name, Math.random, {
+      mode,
+      stageBank: randomBank?.stages,
+      stageBankId: randomBank?.bankId,
+      stageBankFallback: randomBank?.fallback,
+      competitionSets: randomBank?.competitionSets,
+    });
+    activePlayId = session.playId;
+  }
   const playId = activePlayId;
 
   $("#countdown-mode").textContent = modeLabel(mode);
@@ -476,20 +506,65 @@ function prepareFirstStage(playId) {
   clearCountdownWork();
   if (!isActivePlay(playId) || phase !== PHASE.COUNTDOWN) return;
 
-  buildBoard();
-  renderBoard();
-  updateHud(monotonicNow());
+  const pendingOfficial = pendingPlay?.playId === playId ? pendingPlay : null;
+  if (!pendingOfficial) {
+    buildBoard();
+    renderBoard();
+    updateHud(monotonicNow());
+  }
   setPhase(PHASE.STAGE_TRANSITION);
 
-  countdownRafId = requestAnimationFrame(() => {
+  countdownRafId = requestAnimationFrame(async () => {
     countdownRafId = null;
     if (!isActivePlay(playId) || phase !== PHASE.STAGE_TRANSITION) return;
 
-    session.startStage(monotonicNow());
-    setPhase(PHASE.PLAYING);
-    setBoardInputEnabled(true);
-    startTimer(playId);
-    updateHud(monotonicNow());
+    if (pendingOfficial) {
+      setGameStatus("公式プレイを確認しています…");
+      const begun = await beginOfficialRun({ runToken: pendingOfficial.runToken });
+      if (!isActivePlay(playId) || phase !== PHASE.STAGE_TRANSITION) return;
+      if (begun.status !== "ok") {
+        cancelActivePlay({ goHome: true });
+        const error = $("#name-error");
+        if (error) {
+          error.textContent =
+            "公式モードを開始できませんでした。通信を確認してもう一度お試しください。";
+        }
+        return;
+      }
+      session = new GameSession(pendingOfficial.name, Math.random, {
+        playId,
+        mode: pendingOfficial.mode,
+        stageBank: pendingOfficial.randomBank?.stages,
+        stageBankId: pendingOfficial.randomBank?.bankId,
+        stageBankFallback: pendingOfficial.randomBank?.fallback,
+        competitionSets: pendingOfficial.randomBank?.competitionSets,
+        officialStageIds: begun.stageIds,
+        runToken: pendingOfficial.runToken,
+      });
+      pendingPlay = null;
+      buildBoard();
+      renderBoard();
+      updateHud(monotonicNow());
+    }
+
+    startPlayingAfterBoardPaint(playId);
+  });
+}
+
+function startPlayingAfterBoardPaint(playId) {
+  // 2フレーム待ち、DOM更新だけでなく実paintも競技タイムから除外する。
+  countdownRafId = requestAnimationFrame(() => {
+    countdownRafId = requestAnimationFrame(() => {
+      countdownRafId = null;
+      if (!isActivePlay(playId) || phase !== PHASE.STAGE_TRANSITION || !session) {
+        return;
+      }
+      session.startStage(monotonicNow());
+      setPhase(PHASE.PLAYING);
+      setBoardInputEnabled(true);
+      updateHud(monotonicNow());
+      startTimer(playId);
+    });
   });
 }
 
@@ -566,6 +641,8 @@ function setBoardInputEnabled(enabled) {
 function onCellTap(r, c) {
   if (phase !== PHASE.PLAYING || !session) return;
 
+  const tappedAt = monotonicNow();
+  session.recordTap(r, c, tappedAt);
   const state = session.current;
   const result = state.tap(r, c);
   const cell = cells[r][c];
@@ -583,7 +660,7 @@ function onCellTap(r, c) {
   updateHud(monotonicNow());
 
   if (result.type === "place" && state.cleared) {
-    onStageClear();
+    onStageClear(tappedAt);
   } else if (result.type === "place") {
     playCorrectSound();
   }
@@ -603,6 +680,8 @@ function onHint() {
   const state = session.current;
   if (!state.canHint()) return;
 
+  const hintedAt = monotonicNow();
+  session.recordHintAction(hintedAt);
   const result = state.applyHint();
   session.recordHint();
   renderBoard();
@@ -624,7 +703,7 @@ function onHint() {
   }
 
   updateHintButton();
-  if (state.cleared) onStageClear();
+  if (state.cleared) onStageClear(hintedAt);
 }
 
 function updateHintButton() {
@@ -639,11 +718,21 @@ function updateHintButton() {
   button.disabled = !canUse;
 }
 
-function onStageClear() {
+function onStageClear(clearedAt = monotonicNow()) {
   if (phase !== PHASE.PLAYING || !session) return;
 
   const playId = session.playId;
-  session.finishStage(monotonicNow());
+  session.finishStage(clearedAt);
+  const lastStage = session.isLastStage();
+  if (lastStage && session.mode === GAME_MODE.OFFICIAL) {
+    officialSubmissionPromise = submitScore({
+      playId,
+      mode: session.mode,
+      runToken: session.runToken,
+      transcript: session.transcript(),
+      elapsedMs: Math.floor(session.accumulatedMs),
+    });
+  }
   playCorrectSound();
   setPhase(PHASE.STAGE_TRANSITION);
   setBoardInputEnabled(false);
@@ -659,7 +748,6 @@ function onStageClear() {
   );
   vibrate([20, 40, 30]);
 
-  const lastStage = session.isLastStage();
   showToast(lastStage ? "全ステージクリア!" : "ステージクリア!");
 
   clearTransitionWork();
@@ -678,16 +766,7 @@ function onStageClear() {
     renderBoard();
     updateHud(monotonicNow());
 
-    countdownRafId = requestAnimationFrame(() => {
-      countdownRafId = null;
-      if (!isActivePlay(playId) || phase !== PHASE.STAGE_TRANSITION) return;
-
-      session.startStage(monotonicNow());
-      setPhase(PHASE.PLAYING);
-      setBoardInputEnabled(true);
-      startTimer(playId);
-      updateHud(monotonicNow());
-    });
+    startPlayingAfterBoardPaint(playId);
   }, 850);
 }
 
@@ -765,12 +844,20 @@ function goToResult(playId) {
     stateElement.textContent = "公式ランキングへ送信中…";
   }
 
-  submitScore({
-    playId,
-    mode: completedSession.mode,
-    playerName: completedSession.playerName,
-    score: adjusted,
-  }).then((result) => {
+  const submissionPromise =
+    completedSession.mode === GAME_MODE.OFFICIAL
+      ? officialSubmissionPromise
+      : submitScore({ playId, mode: completedSession.mode });
+  Promise.resolve(
+    submissionPromise ||
+      submitScore({
+        playId,
+        mode: completedSession.mode,
+        runToken: completedSession.runToken,
+        transcript: completedSession.transcript(),
+        elapsedMs: Math.floor(breakdown.elapsedMs),
+      })
+  ).then((result) => {
     if (
       !isActivePlay(playId) ||
       session !== completedSession ||
@@ -779,6 +866,20 @@ function goToResult(playId) {
       return;
     }
 
+    if (
+      result.status === "ok" &&
+      result.score != null &&
+      result.score !== adjusted
+    ) {
+      applySubmitResult(
+        stateElement,
+        {
+          status: "error",
+          message: "記録の確認結果が画面表示と一致しませんでした",
+        }
+      );
+      return;
+    }
     applySubmitResult(stateElement, result);
     if (isRankingEnabled()) loadRankingInto("#result-ranking");
   });

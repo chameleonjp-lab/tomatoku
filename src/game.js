@@ -120,12 +120,40 @@ function randomStageSetsFor(stageBank) {
 }
 
 export function selectRandomStages(rand = Math.random, stageBank = STAGES) {
-  const sets = randomStageSetsFor(stageBank);
+  return selectStagesFromCompetitionSets(rand, stageBank, null);
+}
+
+function normalizedRandomIndex(rand, length) {
   const value = Number(rand());
   const normalized = Number.isFinite(value)
     ? Math.min(0.999999999999, Math.max(0, value))
     : 0;
-  return sets[Math.floor(normalized * sets.length)];
+  return Math.floor(normalized * length);
+}
+
+export function selectStagesFromCompetitionSets(
+  rand = Math.random,
+  stageBank = STAGES,
+  competitionSets = null
+) {
+  if (Array.isArray(competitionSets) && competitionSets.length > 0) {
+    const selectedIds = competitionSets[
+      normalizedRandomIndex(rand, competitionSets.length)
+    ];
+    const stageById = new Map(stageBank.map((stage) => [stage.id, stage]));
+    const selected = selectedIds.map((stageId) => stageById.get(stageId));
+    if (
+      selected.length !== 3 ||
+      selected.some((stage) => !stage) ||
+      !selected.every((stage, index) => stage.difficulty === index + 1)
+    ) {
+      throw new Error("公平抽選セットが問題バンクと一致しません");
+    }
+    return selected;
+  }
+
+  const sets = randomStageSetsFor(stageBank);
+  return sets[normalizedRandomIndex(rand, sets.length)];
 }
 
 /** 既存の開発用呼び出し名との互換。 */
@@ -324,7 +352,38 @@ export class GameSession {
       this.mode === GAME_MODE.PRACTICE ? this.stageBank : null;
     this.stageBankId = suppliedStageBankId;
     this.stageBankFallback = suppliedStageBankFallback;
-    this.stages = selectRandomStages(rand, this.stageBank);
+    this.competitionSets = Array.isArray(options.competitionSets)
+      ? options.competitionSets
+      : null;
+    const officialStageIds = Array.isArray(options.officialStageIds)
+      ? options.officialStageIds.map(String)
+      : null;
+    if (this.mode === GAME_MODE.OFFICIAL) {
+      if (
+        !officialStageIds ||
+        officialStageIds.length !== 3 ||
+        !this.competitionSets?.some(
+          (set) => set.join("|") === officialStageIds.join("|")
+        )
+      ) {
+        throw new Error("公式モードにはサーバー発行の公平抽選セットが必要です");
+      }
+      const stageById = new Map(this.stageBank.map((stage) => [stage.id, stage]));
+      this.stages = officialStageIds.map((stageId) => stageById.get(stageId));
+      if (
+        this.stages.some((stage) => !stage) ||
+        !this.stages.every((stage, index) => stage.difficulty === index + 1)
+      ) {
+        throw new Error("公式モードの問題指定が問題バンクと一致しません");
+      }
+    } else {
+      this.stages = selectStagesFromCompetitionSets(
+        rand,
+        this.stageBank,
+        this.competitionSets
+      );
+    }
+    this.runToken = String(options.runToken || "");
     this.index = 0;
     this.states = this.stages.map((stage) => new StageState(stage));
     this.mistakeCount = 0;
@@ -340,6 +399,8 @@ export class GameSession {
     this.startTime = null;
     this.completedAt = null;
     this.endTime = null;
+    this.stageFinishedAt = null;
+    this.actions = [];
     this.status = SESSION_STATUS.READY;
   }
 
@@ -384,6 +445,7 @@ export class GameSession {
     this.stageStartedAt = now;
     this.stageStartTime = now;
     this.status = SESSION_STATUS.PLAYING;
+    this.stageFinishedAt = null;
     return true;
   }
 
@@ -398,6 +460,7 @@ export class GameSession {
     );
     this.stageStartedAt = null;
     this.stageStartTime = null;
+    this.stageFinishedAt = now;
     this.status = SESSION_STATUS.STAGE_TRANSITION;
     return duration;
   }
@@ -415,8 +478,10 @@ export class GameSession {
       return false;
     }
 
-    this.completedAt = now;
-    this.endTime = now;
+    const completedAt = this.stageFinishedAt ?? now;
+    this.completedAt = completedAt;
+    this.endTime = completedAt;
+    this.stageFinishedAt = null;
     this.status = SESSION_STATUS.RESULT;
     return true;
   }
@@ -438,6 +503,28 @@ export class GameSession {
   recordHint() {
     this.hintCount++;
     this.stageHintCounts[this.index]++;
+  }
+
+  recordTap(r, c, now = monotonicNow()) {
+    this.actions.push({
+      type: "tap",
+      stageIndex: this.index,
+      row: r,
+      col: c,
+      atMs: Math.max(0, Math.floor(this.elapsedMs(now))),
+    });
+  }
+
+  recordHintAction(now = monotonicNow()) {
+    this.actions.push({
+      type: "hint",
+      stageIndex: this.index,
+      atMs: Math.max(0, Math.floor(this.elapsedMs(now))),
+    });
+  }
+
+  transcript() {
+    return this.actions.map((action) => ({ ...action }));
   }
 
   retire() {

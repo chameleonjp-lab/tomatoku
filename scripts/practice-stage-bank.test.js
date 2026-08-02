@@ -18,6 +18,7 @@ import {
   PRACTICE_STAGE_BANK_TIMEOUT_MS,
   createPracticeStageBankLoader,
   loadPracticeStageBank,
+  validateCompetitionDrawPayload,
   validatePracticeStageBankPayload,
 } from "../src/practice-stage-bank.js";
 import { STAGES } from "../src/stages.js";
@@ -30,6 +31,20 @@ const finalBank = JSON.parse(
     "utf8"
   )
 );
+const competitionDraw = JSON.parse(
+  readFileSync(
+    fileURLToPath(
+      new URL("../generated/balanced-official-draw-v1.json", import.meta.url)
+    ),
+    "utf8"
+  )
+);
+const drawValidation = validateCompetitionDrawPayload(
+  competitionDraw,
+  finalBank.stages
+);
+assert.equal(drawValidation.valid, true, drawValidation.problems.join("; "));
+const competitionSets = drawValidation.competitionSets;
 
 const ENABLED_PRACTICE_FEATURE = Object.freeze({
   ...PRACTICE_STAGE_BANK_FEATURE,
@@ -54,6 +69,13 @@ function response(body, { ok = true } = {}) {
       return structuredClone(body);
     },
   };
+}
+
+function fixtureFetch({ bank = finalBank, draw = competitionDraw, ok = true } = {}) {
+  return async (url) =>
+    response(String(url).includes("balanced-official-draw") ? draw : bank, {
+      ok,
+    });
 }
 
 await test("公式と練習は同じactive問題バンクを使う", async () => {
@@ -110,12 +132,13 @@ await test("difficulty欠落・分布不正は完成bankとして受け付けな
 await test("成功時は完成84問を返す", async () => {
   const result = await loadPracticeStageBank({
     feature: ENABLED_PRACTICE_FEATURE,
-    fetchImpl: async () => response(finalBank),
+    fetchImpl: fixtureFetch(),
   });
   assert.equal(result.bankId, ENABLED_PRACTICE_FEATURE.primaryBankId);
   assert.equal(result.fallback, false);
   assert.equal(result.fallbackReason, null);
   assert.equal(result.stages.length, 84);
+  assert.equal(result.competitionSets.length, 224);
   assert.ok(result.stages.every((stage) => stage.id.startsWith("STG-")));
 });
 
@@ -141,9 +164,9 @@ await test("HTTP失敗・不正bank・通信例外は旧30問へフォールバ�
     delete stage.difficulty;
   });
   const cases = [
-    [async () => response({}, { ok: false }), "http-error"],
-    [async () => response({ ...finalBank, stageCount: 83 }), "invalid-bank"],
-    [async () => response(missingDifficulty), "invalid-bank"],
+    [fixtureFetch({ ok: false }), "http-error"],
+    [fixtureFetch({ bank: { ...finalBank, stageCount: 83 } }), "invalid-bank"],
+    [fixtureFetch({ bank: missingDifficulty }), "invalid-bank"],
     [async () => { throw new Error("offline"); }, "network-error"],
   ];
   for (const [fetchImpl, reason] of cases) {
@@ -156,6 +179,18 @@ await test("HTTP失敗・不正bank・通信例外は旧30問へフォールバ�
     assert.equal(result.fallbackReason, reason);
     assert.equal(result.stages, STAGES);
   }
+});
+
+await test("不正な公平抽選データは受け付けない", async () => {
+  const invalidDraw = structuredClone(competitionDraw);
+  invalidDraw.decks[0].slots[0][0] = "STG-9999";
+  const result = await loadPracticeStageBank({
+    feature: ENABLED_PRACTICE_FEATURE,
+    fetchImpl: fixtureFetch({ draw: invalidDraw }),
+  });
+  assert.equal(result.fallback, true);
+  assert.equal(result.fallbackReason, "invalid-draw");
+  assert.equal(result.competitionSets, null);
 });
 
 await test("応答が停止しても時間切れで旧30問へ戻る", async () => {
@@ -182,6 +217,7 @@ await test("一時fallbackは次回再試行し、有効bankだけを再利用",
   const validResult = {
     bankId: finalBank.id,
     stages: finalBank.stages,
+    competitionSets,
     fallback: false,
     fallbackReason: null,
   };
@@ -236,13 +272,21 @@ await test("完成bankを注入した練習セッションは難易度1→2→3"
     practiceStageBank: finalBank.stages,
     practiceStageBankId: finalBank.id,
     practiceStageBankFallback: false,
+    competitionSets,
   });
   assert.equal(session.stageBankId, finalBank.id);
   assert.equal(session.stageBankFallback, false);
   assert.deepEqual(session.stages.map((stage) => stage.difficulty), [1, 2, 3]);
   assert.ok(session.stages.every((stage) => stage.id.startsWith("STG-")));
   assert.equal(new Set(session.stages.map((stage) => stage.id)).size, 3);
-  assert.equal(new Set(session.stages.map(solutionSignature)).size, 3);
+  assert.notEqual(
+    solutionSignature(session.stages[0]),
+    solutionSignature(session.stages[1])
+  );
+  assert.notEqual(
+    solutionSignature(session.stages[1]),
+    solutionSignature(session.stages[2])
+  );
 });
 
 await test("公式セッションも完成bankから難易度別にランダム選出", async () => {
@@ -251,12 +295,16 @@ await test("公式セッションも完成bankから難易度別にランダム�
     playId: "official-random",
     stageBank: finalBank.stages,
     stageBankId: finalBank.id,
+    stageBankFallback: false,
+    competitionSets,
+    officialStageIds: competitionSets[42],
+    runToken: "server-issued-run",
   });
   assert.equal(session.stageBankId, finalBank.id);
   assert.deepEqual(session.stages.map((stage) => stage.difficulty), [1, 2, 3]);
   assert.ok(session.stages.every((stage) => stage.id.startsWith("STG-")));
   assert.equal(new Set(session.stages.map((stage) => stage.id)).size, 3);
-  assert.equal(new Set(session.stages.map(solutionSignature)).size, 3);
+  assert.deepEqual(session.stages.map((stage) => stage.id), competitionSets[42]);
 });
 
 await test("完成bank descriptorは公式・練習とランキングで有効", async () => {

@@ -88,13 +88,27 @@ assert.equal(sound.playIncorrectSound(), false, "無音へ戻すと不正解音�
 assert.equal(oscillators.length, 3);
 
 const stageClearSource = mainSource.match(
-  /function onStageClear\(\)[\s\S]*?function updateHud/
+  /function onStageClear\([^)]*\)[\s\S]*?function updateHud/
 )?.[0];
 assert.ok(stageClearSource, "ステージクリア処理を取得");
 assert.ok(
   stageClearSource.indexOf("session.finishStage") <
     stageClearSource.indexOf("playCorrectSound"),
   "最終タップはタイム確定後に正解音を鳴らす"
+);
+const paintBoundarySource = mainSource.match(
+  /function startPlayingAfterBoardPaint\([^)]*\)[\s\S]*?function setGameStatus/
+)?.[0];
+assert.ok(paintBoundarySource, "盤面paint後の開始処理を取得");
+assert.equal(
+  (paintBoundarySource.match(/requestAnimationFrame/g) || []).length,
+  2,
+  "盤面を1フレーム描画してから次のrAFで計測する"
+);
+assert.ok(
+  paintBoundarySource.indexOf("session.startStage") <
+    paintBoundarySource.indexOf("setBoardInputEnabled(true)"),
+  "計測開始より前に盤面入力を有効化しない"
 );
 assert.match(
   mainSource,

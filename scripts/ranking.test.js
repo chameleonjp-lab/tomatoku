@@ -10,15 +10,22 @@ import {
 const CONFIG = {
   supabaseUrl: "https://project.supabase.co",
   supabasePublishableKey: "sb_publishable_abcdefghijklmnopqrstuvwxyz",
-  gameSlug: "tomatoku",
+  gameSlug: "tomatoku_competition_v1",
   clientVersion: "tomatooku-test",
   timeoutMs: 20,
-  submitRpc: "submit_score",
+  competitionFunction: "tomatoku-competition",
   bestRankingRpc: "get_best_score_ranking",
   firstRankingRpc: "get_first_try_ranking",
   rankingsEnabled: true,
   submissionsEnabled: true,
 };
+const TRANSCRIPT = Array.from({ length: 15 }, (_, index) => ({
+  type: "tap",
+  stageIndex: Math.floor(index / 5),
+  row: index % 5,
+  col: index % 5,
+  atMs: (index + 1) * 100,
+}));
 
 function jsonResponse(data, status = 200) {
   return {
@@ -71,8 +78,9 @@ await test("練習モードは通信しない", async () => {
   const result = await client.submitScore({
     playId: "p1",
     mode: "practice",
-    playerName: "A",
-    score: 100,
+    runToken: "unused",
+    transcript: TRANSCRIPT,
+    elapsedMs: 1500,
   });
   assert.equal(result.status, "skipped");
   assert.equal(calls, 0);
@@ -92,8 +100,9 @@ await test("送信ゲートOFFの公式は通信しない", async () => {
   const result = await client.submitScore({
     playId: "p2",
     mode: "official",
-    playerName: "A",
-    score: 100,
+    runToken: "run-2",
+    transcript: TRANSCRIPT,
+    elapsedMs: 1500,
   });
   assert.equal(result.status, "skipped");
   assert.equal(calls, 0);
@@ -115,38 +124,84 @@ await test("ランキング停止中は取得も通信しない", async () => {
   assert.equal(calls, 0);
 });
 
-await test("公式送信は共通RPCの4引数とapikeyだけを使う", async () => {
+await test("公式の準備・開始は検証用Edge Functionとapikeyだけを使う", async () => {
+  const requests = [];
+  const client = createRankingClient(CONFIG, {
+    fetch: async (url, options) => {
+      const body = JSON.parse(options.body);
+      requests.push({ url, options, body });
+      if (body.action === "prepare") {
+        return jsonResponse({
+          accepted: true,
+          runToken: "server-run",
+        });
+      }
+      return jsonResponse({
+        accepted: true,
+        stageIds: ["STG-0001", "STG-0029", "STG-0057"],
+      });
+    },
+  });
+  const prepared = await client.prepareOfficialRun({ playerName: "  テスト  " });
+  assert.equal(prepared.status, "ok");
+  assert.deepEqual(prepared.stageIds, []);
+  assert.deepEqual(
+    await client.beginOfficialRun({ runToken: prepared.runToken }),
+    {
+      status: "ok",
+      stageIds: ["STG-0001", "STG-0029", "STG-0057"],
+    }
+  );
+  assert.equal(requests.length, 2);
+  assert.ok(requests.every((request) => /functions\/v1\/tomatoku-competition$/.test(request.url)));
+  assert.ok(requests.every((request) => request.options.headers.apikey === CONFIG.supabasePublishableKey));
+  assert.ok(requests.every((request) => !("Authorization" in request.options.headers)));
+  assert.deepEqual(requests[0].body, {
+    action: "prepare",
+    clientVersion: "tomatooku-test",
+    playerName: "テスト",
+  });
+  assert.deepEqual(requests[1].body, {
+    action: "begin",
+    clientVersion: "tomatooku-test",
+    runToken: "server-run",
+  });
+});
+
+await test("公式送信はスコアを自己申告せず操作記録だけを送る", async () => {
   let request;
   const client = createRankingClient(CONFIG, {
     fetch: async (url, options) => {
       request = { url, options };
-      return jsonResponse([
-        {
-          accepted: true,
-          result_first_score: 5000,
-          result_best_score: 4800,
-          result_play_count: 2,
-          is_first_play: false,
-          is_new_best: true,
-        },
-      ]);
+      return jsonResponse({
+        accepted: true,
+        score: 4835,
+        result_first_score: 5000,
+        result_best_score: 4800,
+        result_play_count: 2,
+        is_first_play: false,
+        is_new_best: true,
+      });
     },
   });
   const result = await client.submitScore({
     playId: "play-1",
     mode: "official",
-    playerName: "  テスト  ",
-    score: 4835.9,
+    runToken: "server-run",
+    transcript: TRANSCRIPT,
+    elapsedMs: 1835.9,
   });
-  assert.match(request.url, /submit_score$/);
+  assert.match(request.url, /functions\/v1\/tomatoku-competition$/);
   assert.equal(request.options.headers.apikey, CONFIG.supabasePublishableKey);
   assert.equal("Authorization" in request.options.headers, false);
   assert.deepEqual(JSON.parse(request.options.body), {
-    p_display_name: "テスト",
-    p_game_slug: "tomatoku",
-    p_score: 4835,
-    p_client_version: "tomatooku-test",
+    action: "finish",
+    clientVersion: "tomatooku-test",
+    runToken: "server-run",
+    transcript: TRANSCRIPT,
+    elapsedMs: 1835,
   });
+  assert.equal("score" in JSON.parse(request.options.body), false);
   assert.equal(result.status, "ok");
   assert.equal(result.bestScore, 4800);
 });
@@ -156,14 +211,15 @@ await test("同じplayIdは同一Promise・通信1回", async () => {
   const client = createRankingClient(CONFIG, {
     fetch: async () => {
       calls++;
-      return jsonResponse([{ accepted: true }]);
+      return jsonResponse({ accepted: true, score: 10 });
     },
   });
   const args = {
     playId: "same",
     mode: "official",
-    playerName: "A",
-    score: 10,
+    runToken: "same-run",
+    transcript: TRANSCRIPT,
+    elapsedMs: 1000,
   };
   const first = client.submitScore(args);
   const second = client.submitScore(args);
@@ -189,7 +245,7 @@ await test("ベストランキングを正規化", async () => {
     },
   });
   const result = await client.fetchBestRanking(3);
-  assert.deepEqual(body, { p_game_slug: "tomatoku", p_limit: 3 });
+  assert.deepEqual(body, { p_game_slug: "tomatoku_competition_v1", p_limit: 3 });
   assert.equal(result.status, "ok");
   assert.equal(result.rows[0].bestScore, 5000);
 });

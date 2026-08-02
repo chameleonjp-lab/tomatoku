@@ -5,10 +5,10 @@
 export const RANKING_CONFIG = Object.freeze({
   supabaseUrl: "https://mlpnjgezrnhdxsxolyzj.supabase.co",
   supabasePublishableKey: "sb_publishable_drzcy0v97knU6FgjqSgBHw_0A9XPdFM",
-  gameSlug: "tomatoku",
-  clientVersion: "tomatooku-web-2.6.0-random-official-v1",
+  gameSlug: "tomatoku_competition_v1",
+  clientVersion: "tomatooku-web-3.0.0-verified-competition-v1",
   timeoutMs: 8000,
-  submitRpc: "submit_score",
+  competitionFunction: "tomatoku-competition",
   bestRankingRpc: "get_best_score_ranking",
   firstRankingRpc: "get_first_try_ranking",
   // 公式モードだけを共通ランキングへ送信する。練習モードは常に対象外。

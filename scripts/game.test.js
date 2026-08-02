@@ -20,6 +20,7 @@ import {
   solutionSignature,
 } from "../src/game.js";
 import { STAGES } from "../src/stages.js";
+import { validateCompetitionDrawPayload } from "../src/practice-stage-bank.js";
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const finalBank = JSON.parse(
@@ -28,6 +29,22 @@ const finalBank = JSON.parse(
     "utf8"
   )
 );
+const competitionDraw = JSON.parse(
+  fs.readFileSync(
+    path.join(ROOT, "generated/balanced-official-draw-v1.json"),
+    "utf8"
+  )
+);
+const competitionValidation = validateCompetitionDrawPayload(
+  competitionDraw,
+  finalBank.stages
+);
+assert.equal(
+  competitionValidation.valid,
+  true,
+  competitionValidation.problems.join("; ")
+);
+const competitionSets = competitionValidation.competitionSets;
 
 let pass = 0;
 function test(name, fn) {
@@ -189,22 +206,24 @@ test("3分を超える補正タイムも上限で切らない", () => {
   assert.equal(formatCentiseconds(score), "184.00");
 });
 
-test("公式セッションは難易度別の3問をランダム選出", () => {
-  const combinations = new Set();
-  for (let seed = 1; seed <= 100; seed++) {
-    const session = new GameSession("A", seededRand(seed), {
+test("公式セッションはサーバー発行の公平抽選セットだけを使用", () => {
+  for (let index = 0; index < competitionSets.length; index += 17) {
+    const officialStageIds = competitionSets[index];
+    const session = new GameSession("A", seededRand(index + 1), {
       mode: GAME_MODE.OFFICIAL,
-      playId: `official-${seed}`,
+      playId: `official-${index}`,
       stageBank: finalBank.stages,
       stageBankId: finalBank.id,
       stageBankFallback: false,
+      competitionSets,
+      officialStageIds,
+      runToken: `run-${index}`,
     });
     assert.equal(session.mode, GAME_MODE.OFFICIAL);
     assert.deepEqual(session.stages.map((stage) => stage.difficulty), [1, 2, 3]);
-    assert.equal(new Set(session.stages.map((stage) => stage.id)).size, 3);
-    combinations.add(session.stages.map((stage) => stage.id).join(","));
+    assert.deepEqual(session.stages.map((stage) => stage.id), officialStageIds);
+    assert.equal(session.runToken, `run-${index}`);
   }
-  assert.ok(combinations.size > 1);
 });
 
 test("公式セッションは未指定・fallbackの問題バンクを拒否", () => {
@@ -224,8 +243,35 @@ test("公式セッションは未指定・fallbackの問題バンクを拒否", 
         stageBank: finalBank.stages,
         stageBankId: finalBank.id,
         stageBankFallback: true,
+        competitionSets,
+        officialStageIds: competitionSets[0],
       }),
     /承認済み/
+  );
+  assert.throws(
+    () =>
+      new GameSession("A", seededRand(1), {
+        mode: GAME_MODE.OFFICIAL,
+        playId: "official-missing-server-set",
+        stageBank: finalBank.stages,
+        stageBankId: finalBank.id,
+        stageBankFallback: false,
+        competitionSets,
+      }),
+    /サーバー発行/
+  );
+  assert.throws(
+    () =>
+      new GameSession("A", seededRand(1), {
+        mode: GAME_MODE.OFFICIAL,
+        playId: "official-forged-set",
+        stageBank: finalBank.stages,
+        stageBankId: finalBank.id,
+        stageBankFallback: false,
+        competitionSets,
+        officialStageIds: ["STG-0001", "STG-0029", "STG-9999"],
+      }),
+    /サーバー発行/
   );
 });
 
@@ -261,6 +307,28 @@ test("演出・描画待ちは計測されない", () => {
   assert.equal(session.elapsedMs(8000), 1000);
   session.startStage(9000);
   assert.equal(session.elapsedMs(10_000), 2000);
+});
+
+test("最終ステージの終了時刻は正解入力時刻へ固定", () => {
+  const session = new GameSession("A", seededRand(51), { playId: "timer-final" });
+  session.index = session.totalStages - 1;
+  session.startStage(1_000);
+  session.finishStage(2_345);
+  assert.equal(session.advance(9_999), true);
+  assert.equal(session.endTime, 2_345);
+  assert.equal(session.completedAt, 2_345);
+  assert.equal(session.accumulatedMs, 1_345);
+});
+
+test("操作記録は入力時刻・ステージ・マスを保持", () => {
+  const session = new GameSession("A", seededRand(52), { playId: "actions" });
+  session.startStage(1_000);
+  session.recordTap(2, 3, 1_250);
+  session.recordHintAction(1_500);
+  assert.deepEqual(session.transcript(), [
+    { type: "tap", stageIndex: 0, row: 2, col: 3, atMs: 250 },
+    { type: "hint", stageIndex: 0, atMs: 500 },
+  ]);
 });
 
 test("ステージ別時間と累計が一致", () => {
