@@ -154,6 +154,14 @@ async function main() {
     hasTouch: true,
   });
   const page = await context.newPage();
+  await page.addInitScript(() => {
+    Object.defineProperty(navigator, "share", {
+      configurable: true,
+      value: async (data) => {
+        window.__lastShareData = data;
+      },
+    });
+  });
   let rpcRequests = 0;
   let competitionRequests = 0;
   let submitRequests = 0;
@@ -560,6 +568,29 @@ async function main() {
   ok(submitRequests === 1, "公式1プレイの送信リクエスト1件");
   ok(competitionRequests === 3, "公式prepare・begin・finishの3件");
   ok(rpcRequests === 2, "ホーム取得・結果取得の2件");
+
+  await page.click("#result-share-btn");
+  await page.waitForFunction(() => Boolean(window.__lastShareData?.text));
+  const resultShareText = await page.evaluate(
+    () => window.__lastShareData.text
+  );
+  const resultShareLines = resultShareText.split("\n");
+  ok(resultShareLines.length === 3, "公式結果のシェア文は3行");
+  ok(
+    /^トマトオク 公式モードで補正タイム\d+\.\d{2}秒！$/.test(
+      resultShareLines[0]
+    ),
+    "公式結果の補正タイム末尾は全角！"
+  );
+  ok(
+    /^誤タップ\d+ \/ ヒント\d+$/.test(resultShareLines[1]),
+    "公式結果のシェア文は誤タップとヒントを表示"
+  );
+  ok(!resultShareText.includes("実時間"), "公式結果のシェア文に実時間を含めない");
+  ok(
+    resultShareLines[2] === `http://localhost:${PORT}/`,
+    "公式結果のシェア文末尾にゲームURL"
+  );
 
   await page.click("#home-btn");
   await page.waitForSelector("#screen-home.active");
