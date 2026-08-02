@@ -263,7 +263,6 @@ function initHome() {
 
   initModals();
   syncRankingAvailability();
-  loadRankingInto("#home-ranking");
 }
 
 function openModal(id) {
@@ -443,7 +442,6 @@ function cancelActivePlay({ goHome = true } = {}) {
     setPhase(PHASE.RETIRED);
     $("#player-name").value = loadPlayerName();
     setPhase(PHASE.HOME);
-    loadRankingInto("#home-ranking");
   }
 }
 
