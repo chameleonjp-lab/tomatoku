@@ -41,7 +41,7 @@
 
 現在も利用する公開導線:
 
-- [カメレオンJPの実験場](https://chameleonjp.codeberg.page/chameleonjp_lab/)
+- [カメレオンJPの実験場](https://chameleonjp-lab.github.io/chameleonjp_lab/)
 
 ランキング有効時は、ホームと結果画面に詳細ランキングへの導線を表示します。
 

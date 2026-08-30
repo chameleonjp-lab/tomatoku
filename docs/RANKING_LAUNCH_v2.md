@@ -157,9 +157,9 @@ submissionsEnabled = true
 ホームと結果画面に次を追加した。
 
 - 実験場
-  - `https://chameleonjp.codeberg.page/chameleonjp_lab/`
+  - `https://chameleonjp-lab.github.io/chameleonjp_lab/`
 - 詳細ランキング
-  - `https://chameleonjp.codeberg.page/chameleonjp_lab/ranking.html?game=tomatoku`
+  - `https://chameleonjp-lab.github.io/chameleonjp_lab/ranking.html?game=tomatoku`
 
 実験場は`public.games where is_active = true`を読み込むため、台帳登録後は固定配列の更新なしでもゲームカードを解決できる。
 
