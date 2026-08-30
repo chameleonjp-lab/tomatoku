@@ -24,7 +24,7 @@ assert.equal(RANKING_CONFIG.firstRankingRpc, "get_first_try_ranking");
 assert.match(RANKING_CONFIG.supabaseUrl, /^https:\/\/[a-z0-9]+\.supabase\.co$/);
 assert.match(RANKING_CONFIG.supabasePublishableKey, /^sb_publishable_/);
 
-const labUrl = "https://chameleonjp.codeberg.page/chameleonjp_lab/";
+const labUrl = "https://chameleonjp-lab.github.io/chameleonjp_lab/";
 const detailUrl = `${labUrl}ranking.html?game=tomatoku_competition_v1`;
 const escapeRegExp = (value) => value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 
